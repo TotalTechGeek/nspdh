@@ -59,6 +59,10 @@ using namespace nspdh;
 
 using boost::lexical_cast;
 
+// Defines the available generators
+static generator_type gen(time(0));
+static generator_type2 gen2(time(0));
+
 // Displays the flags possible.
 // Needs more verbosity.
 void displayHelp(char* exeName, bool verbose = false)
