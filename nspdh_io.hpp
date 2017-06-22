@@ -1,11 +1,11 @@
 #ifndef _NSPDH_IO_H_
 #define _NSPDH_IO_H_ 1
 
+#include <boost/multiprecision/cpp_int.hpp>
+
 #include <string>
 #include <vector>
 #include <fstream>
-
-#include "nspdh_utilities.hpp"
 
 // Used to link in a C function from an object file.
 #ifdef LINKASN1C

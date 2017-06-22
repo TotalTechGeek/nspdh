@@ -5,6 +5,8 @@
 #include <boost/format.hpp>
 #include <boost/lexical_cast.hpp>
 
+#include "nspdh_utilities.hpp"
+
 using namespace std;
 using namespace boost::multiprecision;
 using namespace boost::math;
