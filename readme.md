@@ -1,6 +1,6 @@
 # nspdh 
 
-## So, what is it?
+### So, what is it?
 nspdh generates secure parameters for Discrete Log Cryptography, like the Diffie-Hellman key exchange and the Digital Signature Algorithm, and does it much (potentially hundreds to thousands of times) faster than our top standard algorithms. 
 
 The algorithm can even generate prime "tuple" parameters that can be used for complete public key cryptography (with both encryption and signatures). 
@@ -27,7 +27,7 @@ You're correct to be suspicious! How would some unknown amateur be able to desig
 
 Well... I went against standard practices... but with good reason! 
 
-**Before you click off, don't worry, I didn't make the amateur mistake of just selecting a random prime, I researched! I know the attacks.**
+**Before clicking off, don't worry, I didn't make the amateur mistake of just selecting a random prime.**
 
 After thoroughly researching Discrete Log Cryptography and contacting a few people who have written on the topic, I disagreed with a few "design" and measurement decisions early cryptographers made a few decades ago. Let me give provide background:
 
@@ -69,7 +69,7 @@ And also! In the time it used to take to generate 2048 bit parameters, you can h
 
 #### But... I don't like the gap.
 
-[Where have I heard this before?](https://youtu.be/pdR7WW3XR9c?t=52). 
+[Where have I heard this before?](https://youtu.be/pdR7WW3XR9c?t=52)
 
 ## How do I actually use the software?
 
@@ -81,5 +81,3 @@ nspdh -h
 ```
 
 I will try to release my patches for ASN1C soon so that you can compile it in and convert immediately to pem and der. Until then, if you want to convert output files to xml, use enber (provided by ASN1C).
-
----
