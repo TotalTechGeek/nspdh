@@ -464,8 +464,8 @@ int main(int argc, char **args)
                         // it attempts to hurry it up.
                         while(blog2(temp*mul + 1) % 8)
                         {
-                            mul <<= 1;                             
-			            }
+                            mul <<= 1;
+                        }
 
                         // Checks if the current multiplier is greater than the current max N.
                         if(mul > maxN) continue;
