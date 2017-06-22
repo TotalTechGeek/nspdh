@@ -1,9 +1,6 @@
 #ifndef _NSPDH_IO_H_
 #define _NSPDH_IO_H_ 1
 
-#include <boost/format.hpp>
-#include <boost/lexical_cast.hpp>
-
 #include <string>
 #include <vector>
 #include <fstream>
