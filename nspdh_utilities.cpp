@@ -28,7 +28,7 @@ namespace nspdh
     {   
         // Iterate over a small list of primes to give a tiny boost to the primality checking
         // This is mainly used so we can output a '.' 
-        for(int i = 1; i <= 1024 + 512; i++)
+        for(int i = 1; i <= blog2(v)/2 + 1; i++)
         {
             if(v == prime(i)) return 1;
             if(!(v % prime(i))) return 0; 
