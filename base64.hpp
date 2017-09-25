@@ -54,6 +54,13 @@ std::string base64_encode(unsigned char const* bytes_to_encode, unsigned int in_
       ret += '=';
   }
 
+  // Fixes a bug with a trailing new line character.
+  // Using substring instead of pop_back for older compiler support.
+  if (ret[ret.length() - 1] == '\n')
+  {
+    ret = ret.substr(0, ret.length() -1);
+  }
+
   return ret;
 
 }

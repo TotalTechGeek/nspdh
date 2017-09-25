@@ -1,6 +1,7 @@
 #include <boost/multiprecision/cpp_int.hpp>
 #include <boost/multiprecision/miller_rabin.hpp>
 #include <boost/math/special_functions/prime.hpp>
+#include <boost/algorithm/string/predicate.hpp>
 #include <boost/format.hpp>
 #include <boost/lexical_cast.hpp>
 
@@ -57,6 +58,7 @@ using namespace boost::multiprecision;
 
 using namespace nspdh;
 
+using boost::starts_with;
 using boost::lexical_cast;
 
 // Defines the available generators
@@ -83,6 +85,8 @@ void displayHelp(char* exeName, bool verbose = false)
         cout << "-bn <value>" << "\tSets the restricted range (in bits) for finding NSPs." << endl;
         cout << "-8" << "\t\tForces the Modulus length to be divisible by 8." << endl;
         cout << "-verify <file>" << "\tVerifies the parameters in a file. OpenSSL Formats are not supported (yet)." << endl;
+        cout << "-hex" << "\t\tPrints out prime number and generator output in hex." << endl;
+        cout << "-use <number>" << "\tAttempts to use a number input into it as the Pohlig-Hellman prime (base 10, or base 16 if -hex is used before this flag)." << endl;
         cout << "-tuple <size>" << "\tFinds a smaller prime of the specified size that will be related to the Pohlig-Hellman prime, creating a Tri-Prime Tuple. For use with signatures." << endl;
         cout << "-out <fileName>" << "\tExports the parameters to a file." << endl;
         #ifdef LINKASN1C
@@ -101,7 +105,7 @@ static cpp_int hack;
 // It works, but I need to make it so that it's a pure function without output.
 // Note that this is not proper XML Parsing, but it is not completely necessary.
 // I am relying on the user to pass in valid input. 
-char verifier(char* p, int range = 4096, int trials = 10, cpp_int& rmodulus = hack, cpp_int& rgenerator = hack)
+char verifier(char* p, int range = 4096, int trials = 10, bool hex = false, cpp_int& rmodulus = hack, cpp_int& rgenerator = hack)
 {
     char results[3];
     int i(0), N(1);
@@ -156,7 +160,7 @@ char verifier(char* p, int range = 4096, int trials = 10, cpp_int& rmodulus = ha
     }
 
     // Prints out the supposed Modulus Prime.
-    cout << "Modulus Prime (" << blog2(modulus) << " bits): " << modulus << endl;
+    cout << "Modulus Prime (" << blog2(modulus) << " bits): " << (hex ? std::hex : std::dec) << modulus << std::dec << endl;
     cout << endl;
     
     // Used to compute the actual Pohlig.
@@ -175,7 +179,7 @@ char verifier(char* p, int range = 4096, int trials = 10, cpp_int& rmodulus = ha
     }
 
     // Prints out the computed Pohlig-Hellman prime.
-    cout << "Pohlig-Hellman Prime (" << blog2(pohlig) << " bits): " << pohlig << endl;
+    cout << "Pohlig-Hellman Prime (" << blog2(pohlig) << " bits): " << (hex ? std::hex : std::dec) << pohlig << std::dec << endl;
     cout << endl << "N: " << N << endl;
 
     // Used to parallelize the tests.
@@ -215,7 +219,7 @@ char verifier(char* p, int range = 4096, int trials = 10, cpp_int& rmodulus = ha
     if(!(results[0] && results[1])) results[2] = 0;
     
     // Prints out the generator.
-    cout << "Generator: " << generator << " ";
+    cout << "Generator: " << (hex ? std::hex : std::dec) << generator << " ";
     
     // Outputs if it was quadratic.
     if(results[2] & 2) cout << "(Quadratic Residue)"; 
@@ -249,12 +253,14 @@ int main(int argc, char **args)
     int tuple(0);
     char convert(0);
     bool multiple(false);
+    bool hex(false);
     bool divisibleBy8(false);
     bool randomizeGenerator(false);
     char generatorMode(0);
     char *outFile = nullptr;
     char *verify = nullptr;
     long long maxN(4096ll | (1ll << 40));
+    cpp_int requestPrime(0);
     // End Flags //
 
     // Mutex for adding the parameters.
@@ -265,19 +271,46 @@ int main(int argc, char **args)
     {
         #ifdef LINKASN1C
         // Converts the parameters to the .der format OpenSSL understands.
-        if(!strcmp(args[i], "-der")) convert = 1;
+        if(!strcmp(args[i], "-der")) convert |= 1;
         else
 
         // Converts the parameters to the .pem format OpenSSL understands. (Experimental)
-        if(!strcmp(args[i], "-pem")) convert = 2;
+        if(!strcmp(args[i], "-pem")) convert |= 2;
         else
         #endif
+
+        // Sets the output to be hexadecimal.
+        if(!strcmp(args[i], "-hex")) hex = true;
+        else
 
         // Displays the verbose version of the help.
         if(!strcmp(args[i], "-h") || !strcmp(args[i], "-help")) 
         {
             displayHelp(args[0], true);
             return 0;
+        }
+        else
+
+        // Attempts to use this value as the prime (and find one near it).
+        if(!strcmp(args[i], "-use") || !strcmp(args[i], "-u") || !strcmp(args[i], "-in")) 
+        { 
+            string p = (args[++i]);
+            if(hex)
+            {
+                if(starts_with(p, "0x"))
+                {
+                    requestPrime.assign(p);    
+                }
+                else
+                {
+                    requestPrime.assign("0x" + p);
+                }
+
+            }
+            else
+            {
+                requestPrime.assign(p);
+            }
         }
         else
 
@@ -288,15 +321,15 @@ int main(int argc, char **args)
         else
 
         // Used to generate a prime tuple structure, which is a set of parameters that can support both encryption and signatures efficiently.
-        if(!strcmp(args[i], "-tuple") || !strcmp(args[i], "-t")) tuple = atoi(args[i++ + 1]);
+        if(!strcmp(args[i], "-tuple") || !strcmp(args[i], "-t")) tuple = atoi(args[++i]);
         else
         
         // Sets the maximum size of the offset (n). (for 2np + 1) 
-        if(!strcmp(args[i], "-n") || !strcmp(args[i], "-N")) maxN = atoi(args[i++ + 1]);
+        if(!strcmp(args[i], "-n") || !strcmp(args[i], "-N")) maxN = atoi(args[++i]);
         else
 
         // Sets the maximum size of the offset in bits (n). (for 2np + 1) 
-        if(!strcmp(args[i], "-bn") || !strcmp(args[i], "-bN")) maxN = 1 << atoi(args[i++ + 1]);
+        if(!strcmp(args[i], "-bn") || !strcmp(args[i], "-bN")) maxN = 1 << atoi(args[++i]);
         else
 
         // Randomize tries to randomize the generator. 
@@ -320,11 +353,11 @@ int main(int argc, char **args)
         else
 
         // Attempts to verify the parameters within the given file.
-        if(!strcmp(args[i], "-v") || !strcmp(args[i], "-verify")) verify = args[i++ + 1];
+        if(!strcmp(args[i], "-v") || !strcmp(args[i], "-verify")) verify = args[++i];
         else
         
         // Allows you to specify the output file.
-        if(!strcmp(args[i], "-o") || !strcmp(args[i], "-out")) outFile = args[i++ + 1];
+        if(!strcmp(args[i], "-o") || !strcmp(args[i], "-out")) outFile = args[++i];
         else
 
         // Assumes it is the size parameter and gets it.
@@ -347,6 +380,12 @@ int main(int argc, char **args)
     }
     // otherwise set it to one.
     else maxModuli = 1;
+
+    // Ignores certain parameters if a number is passed in.
+    if(requestPrime != 0)
+    {
+        tuple = false;
+    }
 
     // Checks if the size isn't divisible by 8 while the divisibleBy8 flag is enabled.
     // The algorithm will find compatible primes more quickly if your Pohlig-Hellman is also divisible by 8.
@@ -380,7 +419,7 @@ int main(int argc, char **args)
         cpp_int modulus, generator;
 
         // Verifies the data within the file.
-        char result = verifier(buf, (int)maxN, 10, modulus, generator);
+        char result = verifier(buf, (int)maxN, 10, hex, modulus, generator);
 
         // Allows the person to export the parameters upon verification.
         if((result & 7) == 7 && outFile != nullptr)
@@ -425,6 +464,23 @@ int main(int argc, char **args)
                 tupleBase = generatePrime(tuple, &completionStatus);
                 primeVal = generatePrimeTuple(size, tupleBase, &completionStatus);
                 if(primeVal == 0) continue;
+            }
+            // If a number is passed in, it will try computing a Pohlig-Hellman prime from it.
+            else if(requestPrime != 0)
+            {
+                // Gets the thread id. 
+                int tid = omp_get_thread_num();
+                
+                // Starts searching for a prime related to the number passed in.
+                primeVal = requestPrime + 8*1997*tid; 
+                if(!(primeVal & 1)) primeVal++;
+                
+                while(!fastPrimeC(primeVal)) 
+                {
+                    while(completionStatus == NSPDH_POHLIG_FOUND) Sleep(2000);
+                    if(completionStatus == NSPDH_MODULUS_FOUND) break; 
+                    primeVal += 2;
+                }    
             }
             else
             {
@@ -517,9 +573,11 @@ int main(int argc, char **args)
 
         // Print out the parameters
         cout << endl << endl; 
+        if(hex) cout << std::hex;
         cout << "Pohlig-Hellman Prime: " << phPrime << endl << endl;
         if(tuple) cout << "Tuple Base: " << tupleBase << endl << endl;
         cout << "Modulus Prime: " << modulusPrime << endl << endl;
+        cout << std::dec;
         cout << "Offset N: " << offset << endl; 
         
         // Print out the bit sizes.
@@ -558,9 +616,10 @@ int main(int argc, char **args)
         }
         
         // Prints out the generators.
+        if(hex) cout << std::hex;
         cout << "Primitive Root Generator: " << c << endl;
         cout << "Quadratic Residue Generator: " << quadraticGenerator << endl; 
-        
+        cout << std::dec;
 
         // If there was a specified output file, it exports the parameters.
         if(outFile != nullptr)

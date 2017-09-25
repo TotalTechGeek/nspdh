@@ -191,14 +191,15 @@ namespace nspdh
             // Processes the buffer using the utility from enber. 
             processBuffer(conversion.str().c_str(), conversion.str().length(), outputBuffer, &size);
 
-            if(convert == 1)
+            if(convert & 1)
             {
                 // Outputs the returned buffer.
                 ofstream ofs((outFile + ".der").c_str(), ios::binary);
                 ofs.write(outputBuffer, size);
                 ofs.close();
             }
-            else if((convert & 2) == 2)
+
+            if(convert & 2)
             {
                 ofstream ofs((outFile + ".pem").c_str());
                 string outputString = base64_encode((unsigned char*)outputBuffer, size);
@@ -226,21 +227,14 @@ namespace nspdh
 
                 ofs.close(); 
             }
-            else
-            {
-                // Nothing yet.
-            }
-        }
-        else
-        {
-        // Outputs the xml. 
-        #endif
-            ofstream ofs((outFile + ".xml").c_str());
-            ofs << conversion.str();
-            ofs.close();
-        #ifdef LINKASN1C
+           
         }
         #endif
+        
+        // There will always be an output xml file. 
+        ofstream ofs((outFile + ".xml").c_str());
+        ofs << conversion.str();
+        ofs.close();
     }
 
     // Exports the parameters. (Wrapper function)
