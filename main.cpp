@@ -247,6 +247,11 @@ int main(int argc, char **args)
     // This is more of a collection than a class, 
     // so a struct is more reasonable.
 
+    // Define some generator constants.
+    const int NSPDH_GENERATOR_PRIMITIVE_ROOT = 0;
+    const int NSPDH_GENERATOR_QUADRATIC = 1;
+    const int NSPDH_GENERATOR_SMALLEST = 2;
+
     // Flags for the Program //
     int size(2048);
     int maxModuli(0); 
@@ -256,9 +261,9 @@ int main(int argc, char **args)
     bool hex(false);
     bool divisibleBy8(false);
     bool randomizeGenerator(false);
-    char generatorMode(0);
+    char generatorMode(NSPDH_GENERATOR_PRIMITIVE_ROOT);
     char *outFile = nullptr;
-    char *verify = nullptr;
+    char *verify  = nullptr;
     long long maxN(4096ll | (1ll << 40));
     cpp_int requestPrime(0);
     // End Flags //
@@ -305,7 +310,6 @@ int main(int argc, char **args)
                 {
                     requestPrime.assign("0x" + p);
                 }
-
             }
             else
             {
@@ -345,11 +349,11 @@ int main(int argc, char **args)
         else
 
         // Quadratic exports a quadratic residue generator in the output file.
-        if(!strcmp(args[i], "-q") || !strcmp(args[i], "-quadratic")) generatorMode = 1;
+        if(!strcmp(args[i], "-q") || !strcmp(args[i], "-quadratic")) generatorMode = NSPDH_GENERATOR_QUADRATIC;
         else
 
         // Guarantees that the generator exported is the smallest (between Quadratic and Primitive Root).
-        if(!strcmp(args[i], "-s") || !strcmp(args[i], "-smallest")) generatorMode = 2;
+        if(!strcmp(args[i], "-s") || !strcmp(args[i], "-smallest")) generatorMode = NSPDH_GENERATOR_SMALLEST;
         else
 
         // Attempts to verify the parameters within the given file.
@@ -587,38 +591,46 @@ int main(int argc, char **args)
         cout << blog2(modulusPrime) << " " << blog2(offset) << endl;
 
         // Find a valid primitive root.
-        cpp_int c;
+        cpp_int primitiveGenerator;
 
         if(randomizeGenerator)
         {
             // Finds a random primitive root.
-            c = (gen() % modulusPrime).convert_to<unsigned int>();
+            primitiveGenerator = (gen() % modulusPrime).convert_to<unsigned int>();
         }
         else
         {
             // Finds the smallest possible primitive root.
-            c = 2; 
+            primitiveGenerator = 2; 
         }
         
         // used to find a quadratic-residue generator
         // Note: Potential optimization, when c = 2 test quadratic = 3, if that fails, quadratic is immediately 4 without a test.
-        cpp_int quadraticGenerator(c);
+        cpp_int quadraticGenerator(primitiveGenerator);
         
-        // While the value isn't a generator, increment.
-        while(!checkGenerator(c, modulusPrime, phPrime, offset))
-        {
-            c++;
-        } 
 
+        if(generatorMode == NSPDH_GENERATOR_QUADRATIC || generatorMode == NSPDH_GENERATOR_SMALLEST)
         // Tries to find a quadratic generator, which will have g^(totient/2) == 1,
         while(powm(quadraticGenerator, (modulusPrime-1)/2, modulusPrime) != 1)
         {
             quadraticGenerator++;
         }
-        
+
+        if(generatorMode == NSPDH_GENERATOR_PRIMITIVE_ROOT || (generatorMode == NSPDH_GENERATOR_SMALLEST && quadraticGenerator != primitiveGenerator))
+        // While the value isn't a generator, increment.
+        while(!checkGenerator(primitiveGenerator, modulusPrime, phPrime, offset))
+        {
+            primitiveGenerator++;
+            if(generatorMode == NSPDH_GENERATOR_SMALLEST && primitiveGenerator >= quadraticGenerator) break; 
+        } 
+
         // Prints out the generators.
         if(hex) cout << std::hex;
-        cout << "Primitive Root Generator: " << c << endl;
+
+        if(generatorMode == NSPDH_GENERATOR_PRIMITIVE_ROOT || (generatorMode == NSPDH_GENERATOR_SMALLEST && quadraticGenerator != primitiveGenerator && primitiveGenerator < quadraticGenerator))
+        cout << "Primitive Root Generator: " << primitiveGenerator << endl;
+        else
+        // if(generatorMode == NSPDH_GENERATOR_QUADRATIC || (generatorMode == NSPDH_GENERATOR_SMALLEST && quadraticGenerator <= primitiveGenerator))
         cout << "Quadratic Residue Generator: " << quadraticGenerator << endl; 
         cout << std::dec;
 
@@ -686,17 +698,19 @@ int main(int argc, char **args)
             string variant = "-" + lexical_cast<string>(i);
             if(!multiple) variant = "";
 
+            cpp_int generator(primitiveGenerator); 
+
             //if quadratic mode is toggled, switch the generator into a quadratic residue.
-            if(generatorMode == 1)
+            if(generatorMode == NSPDH_GENERATOR_QUADRATIC)
             {
-                c = quadraticGenerator;
+                generator = quadraticGenerator;
             }
             else
             // if "smallest" mode is enabled, switch the generator into the smallest between
             // the quadratic residue and the primitive root.
-            if(generatorMode == 2)
+            if(generatorMode == NSPDH_GENERATOR_QUADRATIC)
             {
-                c = min(c, quadraticGenerator);
+                generator = min(primitiveGenerator, quadraticGenerator);
             }
             
             // Specifies that these are Diffie-Hellman Parameters.
@@ -704,7 +718,7 @@ int main(int argc, char **args)
             if(dhconvert & 2) dhconvert |= NSPDH_DHPARAM;
 
             // Exports the parameters.
-            exportParameters(string(outFile) + variant, modulusPrime, c, dhconvert);
+            exportParameters(string(outFile) + variant, modulusPrime, generator, dhconvert);
            
         } 
     }
