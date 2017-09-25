@@ -384,6 +384,7 @@ int main(int argc, char **args)
     // Ignores certain parameters if a number is passed in.
     if(requestPrime != 0)
     {
+        cout << "Notice: Using a " << blog2(requestPrime) << " bit number as a source for the prime generation." << endl << flush;
         tuple = false;
     }
 
