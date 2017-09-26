@@ -182,37 +182,13 @@ char verifier(char* p, int range = 4096, int trials = 10, bool hex = false, cpp_
     cout << "Pohlig-Hellman Prime (" << blog2(pohlig) << " bits): " << (hex ? std::hex : std::dec) << pohlig << std::dec << endl;
     cout << endl << "N: " << N << endl;
 
-    // Used to parallelize the tests.
-    Mutex mut;
-    int branchCount(0);
-
     // A silly (but simple) way to parallelize this process.
-    #pragma omp parallel
+    #pragma omp parallel for 
+    for (int branch = 0; branch < 3; branch++)
     {
-        do
-        {
-            // Grabs the current branch.
-            mut.Lock();
-            int branch(branchCount++);
-            mut.Unlock();
-            switch(branch)
-            {
-                case 0:
-                    // Check the first prime value.
-                    results[0] = miller_rabin_test(modulus, trials, gen2);
-                    break;
-                case 1:
-                    // Check the second prime value.
-                    results[1] = miller_rabin_test(pohlig, trials, gen2);
-                    break;
-                case 2: 
-                    // Check the Generator value.
-                    results[2] = checkGeneratorInclusive(generator, modulus, pohlig, N);
-                    break;
-                default:
-                    break;
-            }
-        } while(branchCount < 3);
+        if (branch == 0) results[branch] = miller_rabin_test(modulus, trials, gen2);
+        else if(branch == 1) results[branch] = miller_rabin_test(pohlig, trials, gen2);
+        else if(branch == 2) results[branch] = checkGeneratorInclusive(generator, modulus, pohlig, N);
     }
 
     // Sets the generator to zero in case of some false positive.
@@ -443,12 +419,23 @@ int main(int argc, char **args)
                     val *= prime(i);
                 }
             }
-
             val /= 2;
 
-            // Todo : Parallelize this.
-            if(fastPrimeC(pohlig) && fastPrimeC(requestPrime))
+            // Stores the results of the function calls.
+            char p[2];
+
+            // This is a quick hack to parallelize these two function calls.
+            #pragma omp parallel for
+            for(int branch = 0; branch < 2; branch++)
             {
+                if(branch) p[branch] = fastPrimeC(pohlig);
+                else p[branch] = fastPrimeC(requestPrime); 
+            }
+            
+            // If they're both prime,
+            if(p[0] && p[1])
+            {
+                // add the elements to the lists, and allow the generator to be computed.
                 modulusPrimes.push_back(requestPrime);
                 phPrimes.push_back(pohlig);
                 offsets.push_back(val);
@@ -457,6 +444,7 @@ int main(int argc, char **args)
             }
             else
             {
+                // Otherwise inform the user that it isn't valid.
                 cout << "This is not a valid NSP modulus." << endl;
                 return 0;
             }
