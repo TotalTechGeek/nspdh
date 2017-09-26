@@ -357,7 +357,11 @@ int main(int argc, char **args)
         else
 
         // Attempts to verify the parameters within the given file.
-        if(!strcmp(args[i], "-v") || !strcmp(args[i], "-verify")) verify = args[++i];
+        if(!strcmp(args[i], "-v") || !strcmp(args[i], "-verify")) 
+        {
+            verify = args[++i];
+            if(!strcmp(args[i], "-use") || !strcmp(args[i], "-u") || !strcmp(args[i], "-in")) i--;
+        }
         else
         
         // Allows you to specify the output file.
@@ -369,6 +373,17 @@ int main(int argc, char **args)
             size = atoi(args[i]); 
         }    
     }
+
+    // Storage for the parameters.
+    vector<cpp_int> phPrimes;
+    vector<cpp_int> modulusPrimes;
+    vector<cpp_int> tupleBases;
+    vector<int> offsets;
+
+    // hacks for the algorithm. 
+    // technically there is a potential race condition but the odds of it happening are truly astronomical.
+    // so I won't use a mutex.
+    volatile char completionStatus = 0;
 
     // Checks if divisible by 8 flag enabled and not modified.
     if(divisibleBy8 && (maxN & (1ll << 40)))
@@ -410,44 +425,73 @@ int main(int argc, char **args)
     // Checks if a verification was requested.
     if(verify != nullptr)
     {
-        char *buf = new char[65536];
-        
-        // Gets the file and its size.
-        ifstream ifs(verify, ios::binary | ios::ate);
-        ifstream::pos_type pos = ifs.tellg();
-        
-        // Reads in the entire file.
-        ifs.seekg(0, ios::beg);
-        ifs.read(buf, pos);
-        
-        // Used to return the parameters.
-        cpp_int modulus, generator;
-
-        // Verifies the data within the file.
-        char result = verifier(buf, (int)maxN, 10, hex, modulus, generator);
-
-        // Allows the person to export the parameters upon verification.
-        if((result & 7) == 7 && outFile != nullptr)
+        // If the verification is to be performed on an input modulus value, 
+        // We'll try to compute parameters from a given modulus. 
+        if (requestPrime != 0)
         {
-            // Used to tell it to flag it as a DH Parameter.
-            if(convert & 2) convert |= NSPDH_DHPARAM;
-            exportParameters(string(outFile), modulus, generator, convert);
+            // Create a Pohlig variable.
+            cpp_int pohlig = requestPrime - 1;
+            int val = 1;
+            
+            // Factor out every possible prime.
+            // (NSPs restrict which primes you're allowed to use).
+            for(int i = 0; i < 10000; i++)
+            { 
+                while(!(pohlig % prime(i))) 
+                { 
+                    pohlig /= prime(i);
+                    val *= prime(i);
+                }
+            }
+
+            val /= 2;
+
+            // Todo : Parallelize this.
+            if(fastPrimeC(pohlig) && fastPrimeC(requestPrime))
+            {
+                modulusPrimes.push_back(requestPrime);
+                phPrimes.push_back(pohlig);
+                offsets.push_back(val);
+                tupleBases.push_back(0);
+                completionStatus = NSPDH_MODULUS_FOUND;
+            }
+            else
+            {
+                cout << "This is not a valid NSP modulus." << endl;
+                return 0;
+            }
         }
+        else 
+        {
+            // Used for reading in the file.
+            char *buf = new char[65536];
+            
+            // Gets the file and its size.
+            ifstream ifs(verify, ios::binary | ios::ate);
+            ifstream::pos_type pos = ifs.tellg();
+            
+            // Reads in the entire file.
+            ifs.seekg(0, ios::beg);
+            ifs.read(buf, pos);
+            
+            // Used to return the parameters.
+            cpp_int modulus, generator;
 
-        delete[] buf;
-        return 0;
+            // Verifies the data within the file.
+            char result = verifier(buf, (int)maxN, 10, hex, modulus, generator);
+
+            // Allows the person to export the parameters upon verification.
+            if((result & 7) == 7 && outFile != nullptr)
+            {
+                // Used to tell it to flag it as a DH Parameter.
+                if(convert & 2) convert |= NSPDH_DHPARAM;
+                exportParameters(string(outFile), modulus, generator, convert);
+            }
+
+            delete[] buf;
+            return 0;
+        }
     }
-
-    // Storage for the parameters.
-    vector<cpp_int> phPrimes;
-    vector<cpp_int> modulusPrimes;
-    vector<cpp_int> tupleBases;
-    vector<int> offsets;
-
-    // hacks for the algorithm. 
-    // technically there is a potential race condition but the odds of it happening are truly astronomical.
-    // so I won't use a mutex.
-    volatile char completionStatus = 0;
 
     // Allows nested parallelization, which will work well since I am making the other threads sleep.
     omp_set_nested(1);
@@ -458,7 +502,7 @@ int main(int argc, char **args)
         cpp_int primeVal, tupleBase; 
 
         // Searching for Prime values.
-        while(completionStatus != 2)
+        while(completionStatus != NSPDH_MODULUS_FOUND)
         {
             // If a Prime-Tuple is requested, generate one.
             // Tuple Parameters will compute a requested bit-size factor for the Pohlig-Hellman prime.
