@@ -28,7 +28,7 @@ namespace nspdh
     {   
         // Iterate over a small list of primes to give a tiny boost to the primality checking
         // This is mainly used so we can output a '.' 
-        for(int i = 1; i <= blog2(v)/2 + 1; i++)
+        for(int i = 1; i <= blog2(v)/1.5f + 1; i++)
         {
             if(v == prime(i)) return 1;
             if(!(v % prime(i))) return 0; 
@@ -37,8 +37,27 @@ namespace nspdh
         // Print out a dot to indicate that it may have potentially found a prime value.
         cout << "." << flush;
 
-        // Perform a Miller-Rabin Test.
-        return miller_rabin_test(v, 9, gen2); 
+        // Miller Rabin Test Section, seems to optimize better than the built in Boost MR Test.
+        cpp_int s = v - 1;
+        while (!(s & 1)) s >>= 1;
+        for (int i = 0; i < 9; i++)
+        {
+            cpp_int a = gen2(), temp = s;
+            cpp_int mod = powm(a, temp, v);
+            
+            while (!(mod == 1 || temp == v - 1 || mod == v - 1))
+            {
+                mod = powm(mod, 2, v);
+                temp <<= 1;
+            }
+            
+            if (!(temp & 1) && mod != v-1)
+            {
+                return 0;
+            }
+        }
+
+        return 1;
     }
 
 
