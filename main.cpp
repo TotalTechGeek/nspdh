@@ -740,7 +740,7 @@ int main(int argc, char **args)
             else
             // if "smallest" mode is enabled, switch the generator into the smallest between
             // the quadratic residue and the primitive root.
-            if(generatorMode == NSPDH_GENERATOR_QUADRATIC)
+            if(generatorMode == NSPDH_GENERATOR_SMALLEST)
             {
                 generator = min(primitiveGenerator, quadraticGenerator);
             }
