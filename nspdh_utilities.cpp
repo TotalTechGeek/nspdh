@@ -10,6 +10,18 @@ namespace nspdh
     using namespace boost::random;
     using namespace boost::math; 
     using namespace boost::multiprecision;
+
+
+    #if defined(_WIN32) || defined(_WIN64)
+    #else
+    void Sleep(int x)
+    {
+        // Honestly, 1024 and 1000 are close enough, so that's why I'm using that.
+        // Worst case scenario is that it takes an extra 24ms for a thread to wake up. 
+        // This will hardly be a noticeable factor in the scheme of things. 
+        usleep(x << 10); 
+    }
+    #endif
     
     // Defines the available generators
     static generator_type gen(time(0));

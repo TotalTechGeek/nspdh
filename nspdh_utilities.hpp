@@ -13,13 +13,7 @@ namespace nspdh
     #include <windows.h>
     #else
     #include <unistd.h>
-    void Sleep(int x)
-    {
-        // Honestly, 1024 and 1000 are close enough, so that's why I'm using that.
-        // Worst case scenario is that it takes an extra 24ms for a thread to wake up. 
-        // This will hardly be a noticeable factor in the scheme of things. 
-        usleep(x << 10); 
-    }
+    void Sleep(int x);
     #endif
 
     // This is included as a workaround for older versions of g++.
@@ -27,7 +21,7 @@ namespace nspdh
     #define nullptr NULL
     #endif
 
-    typedef boost::multiprecision::cpp_int cpp_int;
+    using boost::multiprecision::cpp_int;
 
     // Define the types of generators. //
     typedef boost::random::independent_bits_engine<boost::random::mt19937, 8192*2, cpp_int> generator_type;
@@ -51,6 +45,5 @@ namespace nspdh
     cpp_int numberOfGenerators(const cpp_int& modPrime, const cpp_int& phPrime, int smallVal);
     cpp_int generatePrime(int size, volatile char* completionStatus);
     cpp_int generatePrimeTuple(int size, cpp_int base, volatile char* completionStatus);
-    
 }
 #endif
