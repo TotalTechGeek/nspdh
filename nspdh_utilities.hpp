@@ -27,6 +27,7 @@ namespace nspdh
     typedef boost::random::independent_bits_engine<boost::random::mt19937, 8192*2, cpp_int> generator_type;
     typedef boost::random::independent_bits_engine<boost::random::mt19937, 256, cpp_int> generator_type2; // Using a smaller generator here in hopes of speeding up the Miller-Rabin Primality test.
 
+
     #define NSPDH_SEARCH 0
     #define NSPDH_POHLIG_FOUND  1
     #define NSPDH_MODULUS_FOUND 2
@@ -38,7 +39,8 @@ namespace nspdh
     
     // Defines the available functions
     int blog2(cpp_int val);
-    char fastPrimeC(const cpp_int& v);
+    bool isprime(long long x);
+    long long prime(int x);
     std::vector<int> factor(int val);
     char checkGenerator(const cpp_int& proposed, const cpp_int& modPrime, const cpp_int& phPrime, int smallVal);
     char checkGeneratorInclusive(const cpp_int& proposed, const cpp_int& modPrime, const cpp_int& phPrime, int smallVal);

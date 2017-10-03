@@ -1,6 +1,6 @@
 #include "nspdh_utilities.hpp"
-#include <boost/math/special_functions/prime.hpp>
-
+#include <climits>
+#include <iostream>
 namespace nspdh 
 {
     #define generateIt(size) gen() >> ((8192*2) - size);
@@ -33,28 +33,138 @@ namespace nspdh
         return msb(val)+1;
     }
 
+
+    static vector<long long> primeCache;
+
+    bool isprime(long long x)
+    {
+        if(primeCache.size() == 0)
+        {
+            primeCache.push_back(2);
+            primeCache.push_back(3);
+        }
+
+        long long q = primeCache[primeCache.size() - 1];
+        while(q*q <= x)
+        {
+            q += 2;
+            if(isprime(q)) primeCache.push_back(q);
+        } 
+
+        int z = 0;
+        while(primeCache[z]*primeCache[z] <= x)
+        {
+            if(!(x % primeCache[z])) return false;
+            
+            z++;
+        }
+        return true;
+    }
+
+    long long prime(int x)
+    {   
+        return primeCache[x];
+    }
+
+
     // Tests whether the given cpp_int is prime or not.
     // It print out a "." when a potential prime is found. This is to
     // give it more ssl-like behavior.
-    char fastPrimeC(const cpp_int& v)
+    char fastPrimeC(const cpp_int& v, long long *cache, long long by)
     {   
-        // Iterate over a small list of primes to give a tiny boost to the primality checking
-        // This is mainly used so we can output a '.' 
-        for(int i = 1; i <= blog2(v)/1.5f + 1; i++)
+
+        int primeMax = blog2(v)/1.5f + 1;
+        if(primeMax >= NSPDH_TRIAL_DIVISIONS) primeMax = NSPDH_TRIAL_DIVISIONS;
+        if (cache)
         {
-            if(v == prime(i)) return 1;
-            if(!(v % prime(i))) return 0; 
+            bool cacheMade = false, returnEarly = false;
+            if(cache[0] == -1 || cache[0] == -2)
+            {
+                primeMax = NSPDH_TRIAL_DIVISIONS;
+                // Iterate over a small list of primes to give a tiny boost to the primality checking
+                // This is mainly used so we can output a '.' 
+                for(int i = 1; i < primeMax; i++)
+                {
+                    if(v == prime(i)) 
+                    {
+                        cache[0] = -1;
+                        return 1;
+                    }
+
+                    
+                    cache[i] = (v % prime(i)).convert_to<long long>();
+                    if(cache[0] == -1) cache[i] = (prime(i) - cache[i]) % prime(i);
+                    else cache[i] *= 2;
+                }
+            }
+
+            // this is just a hack for now.
+            if (cache[0] == -2) return true;     
+
+            // says that the cache has been established.
+            cache[0] = 0;       
+
+            if(by)
+            {
+                for(int i = 1; i <= primeMax; i++)
+                {
+                    if((cache[i] * by + 1) % prime(i) == 0) return false;
+                }
+            }
+            else
+            {
+                for(int i = 1; i <= primeMax; i++)
+                {
+                    if(cache[i] <= 0) 
+                    {
+                        if(cache[i] == 0)
+                            returnEarly = true;
+                        cache[i] += prime(i);
+                    }
+                }
+                
+                // Written in such a way that SIMD should optimize here.
+                for(int i = 1; i <= primeMax; i++)
+                {
+                    cache[i] -= 2;
+                }
+            }
+
+            if (returnEarly) return 0;
+
+        }
+        else
+        {
+            // Iterate over a small list of primes to give a tiny boost to the primality checking
+            // This is mainly used so we can output a '.' 
+            for(int i = 1; i <= primeMax; i++)
+            {
+                if(v == prime(i)) return 1;
+                if(!(v % prime(i))) return 0; 
+            }
         }
 
         // Print out a dot to indicate that it may have potentially found a prime value.
         cout << "." << flush;
-
+        
         // Miller Rabin Test Section, seems to optimize better than the built in Boost MR Test.
         cpp_int s = v - 1;
+        
+        // Quick Fermat Test 
+        /*
+        cpp_int f = 2; 
+        if(powm(f, s, v) != 1) return 0;
+        cout << "*" << endl; */
+
         while (!(s & 1)) s >>= 1;
+        
+        
         for (int i = 0; i < 9; i++)
         {
-            cpp_int a = gen2(), temp = s;
+            cpp_int a = gen2() % ULONG_MAX, temp = s;
+            if(i == 0) a = 2;
+            if(i == 1) a = 3;
+            if(i == 3) a = 5;
             cpp_int mod = powm(a, temp, v);
             
             while (!(mod == 1 || temp == v - 1 || mod == v - 1))
@@ -185,8 +295,11 @@ namespace nspdh
                 
         // Enforces size restctions (and that it is odd)
         primeVal |= (((cpp_int)1) << (size-1)) | 1;
+
+        long long *cache = new long long[NSPDH_TRIAL_DIVISIONS]();
+        cache[0] = -1;
                     
-        while(!fastPrimeC(primeVal))
+        while(!fastPrimeC(primeVal, cache))
         {
             // If a Pohlig-Hellman Prime has been found by another thread, sleep. 
             while(*completionStatus == NSPDH_POHLIG_FOUND) Sleep(2000);
@@ -197,6 +310,8 @@ namespace nspdh
             // If the value wasn't prime, skip ahead to the next odd integer.
             primeVal += 2;
         }
+
+        delete [] cache;
 
         return primeVal;
     }

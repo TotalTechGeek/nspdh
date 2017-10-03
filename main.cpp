@@ -1,6 +1,5 @@
 #include <boost/multiprecision/cpp_int.hpp>
 #include <boost/multiprecision/miller_rabin.hpp>
-#include <boost/math/special_functions/prime.hpp>
 #include <boost/algorithm/string/predicate.hpp>
 #include <boost/format.hpp>
 #include <boost/lexical_cast.hpp>
@@ -62,7 +61,7 @@ using boost::starts_with;
 using boost::lexical_cast;
 
 // Defines the available generators
-static generator_type gen(time(0));
+static generator_type gen(time(0)); 
 static generator_type2 gen2(time(0));
 
 // Displays the flags possible.
@@ -168,7 +167,7 @@ char verifier(char* p, int range = 4096, int trials = 10, bool hex = false, cpp_
     int c(0);
     
     // Factor out every prime within range.
-    while (c < 10000 && N <= range && prime(c) <= range)
+    while (c < NSPDH_TRIAL_DIVISIONS && N <= range && prime(c) <= range)
     {
         while(!(pohlig % prime(c))) 
         {
@@ -227,6 +226,8 @@ int main(int argc, char **args)
     const int NSPDH_GENERATOR_PRIMITIVE_ROOT = 0;
     const int NSPDH_GENERATOR_QUADRATIC = 1;
     const int NSPDH_GENERATOR_SMALLEST = 2;
+
+    isprime(1024ll*1024ll*1024ll*1024ll * 4);
 
     // Flags for the Program //
     int size(2048);
@@ -411,7 +412,7 @@ int main(int argc, char **args)
             
             // Factor out every possible prime.
             // (NSPs restrict which primes you're allowed to use).
-            for(int i = 0; i < 10000; i++)
+            for(int i = 0; i < NSPDH_TRIAL_DIVISIONS; i++)
             { 
                 while(!(pohlig % prime(i))) 
                 { 
@@ -488,7 +489,8 @@ int main(int argc, char **args)
         cout << "t";
         bool internal = false;
         cpp_int primeVal, tupleBase; 
-
+        
+        
         // Searching for Prime values.
         while(completionStatus != NSPDH_MODULUS_FOUND)
         {
@@ -505,6 +507,9 @@ int main(int argc, char **args)
             // If a number is passed in, it will try computing a Pohlig-Hellman prime from it.
             else if(requestPrime != 0)
             {
+                long long *cache = new long long[NSPDH_TRIAL_DIVISIONS]();
+                cache[0] = -1;
+
                 // Gets the thread id. 
                 int tid = omp_get_thread_num();
                 
@@ -512,12 +517,14 @@ int main(int argc, char **args)
                 primeVal = requestPrime + 8*1997*tid; 
                 if(!(primeVal & 1)) primeVal++;
                 
-                while(!fastPrimeC(primeVal)) 
+                while(!fastPrimeC(primeVal, cache)) 
                 {
                     while(completionStatus == NSPDH_POHLIG_FOUND) Sleep(2000);
                     if(completionStatus == NSPDH_MODULUS_FOUND) break; 
                     primeVal += 2;
                 }    
+
+                delete [] cache;
             }
             else
             {
@@ -539,6 +546,16 @@ int main(int argc, char **args)
 
             // 2*p 
             cpp_int temp = primeVal << 1; 
+
+
+            // Creates a cache to speed up the search.
+            long long *cache = new long long[NSPDH_TRIAL_DIVISIONS]();
+            cache[0] = -2;
+
+            // establishes the cache.
+            fastPrimeC(primeVal, cache);
+            cache[0] = 0;
+
 
             // Computes the n
             #pragma omp parallel for
@@ -564,8 +581,9 @@ int main(int argc, char **args)
                         if(mul > maxN) continue;
                     }
 
+                   
                     // is Prime(2*p*n + 1)
-                    if(fastPrimeC(temp*mul + 1))
+                    if(fastPrimeC(temp*mul + 1, cache, i))
                     {                     
                         // Tell other threads it found an NSP, and wake them up.
                         completionStatus = 2; 
@@ -588,7 +606,8 @@ int main(int argc, char **args)
                     }
                 }
             }
-            
+
+            delete [] cache;
             // If it didn't find an NSP within bounds, print an x and flag for randomization (it seems to find them faster with this behavior). 
             if(!internal)
             {
