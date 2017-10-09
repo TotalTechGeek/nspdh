@@ -157,9 +157,13 @@ namespace nspdh
         cout << "*" << endl; */
 
         while (!(s & 1)) s >>= 1;
+       
+       	// Optimization based on a paper I will cite at a later date.
+        int trialCount = 9;
+        if(blog2(v) >= 2000) trialCount = 3;
+        else if(blog2(v) >= 1024) trialCount = 6;
         
-        
-        for (int i = 0; i < 9; i++)
+        for (int i = 0; i < trialCount; i++)
         {
             cpp_int a = gen2() % ULONG_MAX, temp = s;
             if(i == 0) a = 2;

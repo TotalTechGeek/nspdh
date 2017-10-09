@@ -547,7 +547,6 @@ int main(int argc, char **args)
             // 2*p 
             cpp_int temp = primeVal << 1; 
 
-
             // Creates a cache to speed up the search.
             long long *cache = new long long[NSPDH_TRIAL_DIVISIONS]();
             cache[0] = -2;
@@ -556,6 +555,22 @@ int main(int argc, char **args)
             fastPrimeC(primeVal, cache);
             cache[0] = 0;
 
+            // Quick hack to skip modulus computation. 
+            if(maxModuli < 0)
+            {
+                // Add the parameters and break.
+                mut.Lock();
+                if(phPrimes.size() != maxModuli) 
+                {
+                    phPrimes.push_back(primeVal);
+                    tupleBases.push_back(tupleBase);
+                    modulusPrimes.push_back(0);
+                    offsets.push_back(0);
+                }                         
+                completionStatus = NSPDH_MODULUS_FOUND;
+                internal = true;
+                mut.Unlock();
+            }
 
             // Computes the n
             #pragma omp parallel for
@@ -565,7 +580,7 @@ int main(int argc, char **args)
 
                 // Checks if a result has already been found/if we're supposed to be computing
                 // more values
-                if(phPrimes.size() != maxModuli)
+                if((int)phPrimes.size() < maxModuli)
                 {
 
                     // Checks if divisible by 8 flag is enabled, if it is,
@@ -586,7 +601,7 @@ int main(int argc, char **args)
                     if(fastPrimeC(temp*mul + 1, cache, i))
                     {                     
                         // Tell other threads it found an NSP, and wake them up.
-                        completionStatus = 2; 
+                        completionStatus = NSPDH_MODULUS_FOUND; 
                                     
                         // Mark that this was the thread that found it.
                         internal = true;
@@ -632,6 +647,8 @@ int main(int argc, char **args)
         if(hex) cout << std::hex;
         cout << "Pohlig-Hellman Prime: " << phPrime << endl << endl;
         if(tuple) cout << "Tuple Base: " << tupleBase << endl << endl;
+
+        if(maxModuli < 0) return 0;
         cout << "Modulus Prime: " << modulusPrime << endl << endl;
         cout << std::dec;
         cout << "Offset N: " << offset << endl; 
