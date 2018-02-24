@@ -23,6 +23,7 @@ namespace nspdh
     std::string quotes(const std::string& tag, const std::string& internal);
     std::string quotes(const std::string& tag, int x); 
     void createXML(std::vector<boost::multiprecision::cpp_int>& params, std::ostream& file);
+    std::string createBinary(std::vector<boost::multiprecision::cpp_int>& params);
     void exportParameters(const std::string& outFile, std::vector<boost::multiprecision::cpp_int>& params, char convert);
     void exportParameters(const std::string& outFile, boost::multiprecision::cpp_int& modulusPrime, boost::multiprecision::cpp_int& generator, char convert);    
 }

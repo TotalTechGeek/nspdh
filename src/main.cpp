@@ -261,6 +261,10 @@ int main(int argc, char **args)
         else
         #endif
 
+        // Converts the parameters to the .dh format DiscreteCrypt understands.
+        if(!strcmp(args[i], "-dc")) convert |= 4;
+        else
+
         // Sets the output to be hexadecimal.
         if(!strcmp(args[i], "-hex")) hex = true;
         else

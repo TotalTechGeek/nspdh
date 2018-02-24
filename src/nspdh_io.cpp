@@ -50,6 +50,30 @@ namespace nspdh
         return quotes(tag, lexical_cast<string>(x));
     }
 
+    // Creates the binary file for tools like DiscreteCrypto.
+    std::string createBinary(vector<cpp_int>& params)
+    {
+        std::string result; 
+
+        vector<unsigned char> m;
+        export_bits(params[0], std::back_inserter(m), 8);
+    
+        vector<unsigned char> g;
+        export_bits(params[1], std::back_inserter(g), 8);
+
+        int16_t len = (int16_t)m.size();
+        result.append((char*)&len, sizeof(int16_t));
+
+        len = (int16_t)g.size();
+        result.append((char*)&len, sizeof(int16_t));
+
+        result.append((char*)&m[0], m.size());
+        result.append((char*)&g[0], g.size());
+
+        return result;
+    }
+
+
     // Creates the XML File to be converted by a tool like "enber". 
     void createXML(vector<cpp_int>& params, ostream& file)
     {
@@ -179,6 +203,15 @@ namespace nspdh
         
         // creates the xml version of the parameters.
         createXML(params, conversion);
+
+        // Converts for cryptotool
+        if(convert & 4)
+        {
+                ofstream ofs((outFile + ".dh").c_str(), ios::binary);
+                std::string str = createBinary(params);
+                ofs.write(&str[0], str.length());
+                ofs.close();
+        }
 
         #ifdef LINKASN1C
         // If ASN1C is linked, it checks if the conversion flag is enabled.
