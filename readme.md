@@ -93,13 +93,15 @@ Which will run the init script and fetch all necessary dependencies (Crypto++, A
 
 Java 8 or higher is required. Tested with g++, clang (aliased as g++), and Mingw32_64.
 
+Support for Visual Studio is being considered.
+
 ### Building without dave
 
-If you do not want to build with dave, or you would prefer to build the software with a different compiler, you will need to download and extract Crypto++, and include it in your build. The software also requires the OpenMP flag to be enabled for your compiler. 
+If you do not want to build with dave, or you would prefer to build the software with a different compiler, you will need to download and extract Crypto++, build it, and include it in the final build. The software also requires the OpenMP flag to be enabled for your compiler. 
 
 This build will not include the OpenSSL compatibility features.
 
-You will basically do something along the lines of
+For example, for the Visual Studio compiler you will basically do something along the lines of
 ```
-cl src/*.cpp /fopenmp /Ox
+cl src/*.cpp /openmp /Ox cryptlib.lib /DForce2011
 ```
