@@ -80,4 +80,12 @@ Until then, try running it with:
 nspdh -h
 ```
 
-I will try to release my patches for ASN1C soon so that you can compile it in and convert immediately to pem and der. Until then, if you want to convert output files to xml, use enber (provided by ASN1C).
+### Building with dave 
+
+To build the software, run 
+
+``` 
+java -jar Dave.jar 
+```
+
+Which will run the init script and fetch all necessary dependencies (Boost, ASN1C) and will patch the files to be built for your OS. Building with dave will allow you to support OpenSSL files.
