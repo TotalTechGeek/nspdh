@@ -9,13 +9,15 @@ The algorithm can even generate prime "tuple" parameters that can be used for co
 
 It's reasonably fast, and I think with speed improvements like this Discrete Log Cryptography might finally be seen as a viable alternative to RSA again. The speed boost over the standard algorithms increases with the bit size requested.
 
-On a 2.4GHz i3-3110M Processor, it was able to generate 2048 bit parameters at an average of 8 seconds.
+On a 2.4GHz i3-3110M Processor (from 2012), it was able to generate 2048 bit parameters at an average of 4 seconds.
 OpenSSL consistently lagged behind, with each sample taking closer to two minutes. 
 
-At 3072 bits, nspdh was able to generate new parameters nearly every 20 seconds.
+At 3072 bits, nspdh was able to generate new parameters nearly every 7.7 seconds.
 OpenSSL took nearly four minutes.
 
-At 8192 bits, nspdh was able to generate parameters consistently in between 7 and 20 minutes.
+At 4096 bits, nspdh was able to generate new parameters nearly every 14 seconds.
+
+At 8192 bits, nspdh was able to generate parameters consistently in the range of 2-3 minutes.
 I left OpenSSL running for nearly 5 days before I had to terminate the process. 
 
 Due to a lack of computing power, I don't have a large sample size on larger parameters, but it found 16384 bit parameters in 4 hours. 
@@ -23,9 +25,9 @@ Due to a lack of computing power, I don't have a large sample size on larger par
 ## Okay, what's the catch? 
 ### a.k.a. what are you doing differently? 
 
-You're correct to be suspicious! How would some unknown amateur be able to design something like this "first"? 
+You're correct to be skeptical! What could this algorithm be doing differently? 
 
-Well... I went against standard practices... but with good reason! 
+Well... it goes against standard practices... but with good reason! 
 
 **Before clicking off, don't worry, I didn't make the amateur mistake of just selecting a random prime.**
 
@@ -93,13 +95,15 @@ Which will run the init script and fetch all necessary dependencies (Crypto++, A
 
 Java 8 or higher is required. Tested with g++, clang (aliased as g++), and Mingw32_64.
 
+Support for Visual Studio is being considered.
+
 ### Building without dave
 
-If you do not want to build with dave, or you would prefer to build the software with a different compiler, you will need to download and extract Crypto++, and include it in your build. The software also requires the OpenMP flag to be enabled for your compiler. 
+If you do not want to build with dave, or you would prefer to build the software with a different compiler, you will need to download and extract Crypto++, build it, and include it in the final build. The software also requires the OpenMP flag to be enabled for your compiler. 
 
 This build will not include the OpenSSL compatibility features.
 
-You will basically do something along the lines of
+For example, for the Visual Studio compiler you will basically do something along the lines of
 ```
-cl src/*.cpp /fopenmp /Ox
+cl src/*.cpp /openmp /Ox cryptlib.lib /DForce2011
 ```
