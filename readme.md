@@ -89,13 +89,13 @@ To build the software, run
 java -jar Dave.jar 
 ```
 
-Which will run the init script and fetch all necessary dependencies (Boost, ASN1C) and will patch the files to be built for your OS. Building with dave will allow you to support OpenSSL files. 
+Which will run the init script and fetch all necessary dependencies (Crypto++, ASN1C) and will patch the files to be built for your OS. Building with dave will allow you to support OpenSSL files. 
 
 Java 8 or higher is required. Tested with g++, clang (aliased as g++), and Mingw32_64.
 
 ### Building without dave
 
-If you do not want to build with dave, or you would prefer to build the software with a different compiler, you will need to download and extract Boost, and include it in your build. The software also requires the OpenMP flag to be enabled for your compiler. 
+If you do not want to build with dave, or you would prefer to build the software with a different compiler, you will need to download and extract Crypto++, and include it in your build. The software also requires the OpenMP flag to be enabled for your compiler. 
 
 This build will not include the OpenSSL compatibility features.
 
