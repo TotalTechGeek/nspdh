@@ -278,16 +278,16 @@ int main(int argc, char **args)
             {
                 if(p.length() >= 2 && p[0] == '0' && p[1] == 'x')
                 {
-                    requestPrime = Integer((unsigned char*)&p[0], p.length());    
+                    requestPrime = Integer(p.c_str());    
                 }
                 else
                 {
-                    requestPrime = Integer((unsigned char*)&("0x" + p)[0], p.length() + 2);
+                    requestPrime = Integer(("0x" + p).c_str());
                 }
             }
             else
             {
-                requestPrime = Integer((unsigned char*)&p[0], p.length());
+                requestPrime = Integer(p.c_str());
             }
         }
         else
