@@ -21,11 +21,11 @@ if(isWindows())
 {
     var make = "make"
     if(detect("mingw32-make")) make = "mingw32-make"
-    sys("cd cryptopp & " + make + " -j")
+    sys("cd cryptopp & " + make)
 }
 else
 {
-    sys("cd cryptopp; make -j")
+    sys("cd cryptopp; make")
 }
 
 function make_nspdh()
