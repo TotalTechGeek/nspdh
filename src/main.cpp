@@ -1,9 +1,3 @@
-#include <boost/multiprecision/cpp_int.hpp>
-#include <boost/multiprecision/miller_rabin.hpp>
-#include <boost/algorithm/string/predicate.hpp>
-#include <boost/format.hpp>
-#include <boost/lexical_cast.hpp>
-
 #include <fstream>
 #include <iostream>
 #include <vector>
@@ -11,9 +5,16 @@
 #include <sstream>
 #include <omp.h>
 
+#include "../cryptopp/integer.h"
+#include "../cryptopp/nbtheory.h"
+
+#include "../cryptopp/osrng.h"
+
 #include "portable_mutex.hpp"
 #include "nspdh_utilities.hpp"
 #include "nspdh_io.hpp"
+
+using CryptoPP::Integer;
 
 // Written by Jesse Daniel Mitchell (2017). 
 // To-do: 
@@ -51,18 +52,9 @@
 
 using namespace std;
 
-using namespace boost::random;
-using namespace boost::math; 
-using namespace boost::multiprecision;
 
 using namespace nspdh;
 
-using boost::starts_with;
-using boost::lexical_cast;
-
-// Defines the available generators
-static generator_type gen(time(0)); 
-static generator_type2 gen2(time(0));
 
 // Displays the flags possible.
 // Needs more verbosity.
@@ -97,14 +89,14 @@ void displayHelp(char* exeName, bool verbose = false)
 }
 
 // This is used as a hack to allow me to decide whether I want to return something or not.
-static cpp_int hack; 
+static Integer hack; 
 
 // Verifier function.
 // Needs refractoring and some expansion. 
 // It works, but I need to make it so that it's a pure function without output.
 // Note that this is not proper XML Parsing, but it is not completely necessary.
 // I am relying on the user to pass in valid input. 
-char verifier(char* p, int range = 4096, int trials = 10, bool hex = false, cpp_int& rmodulus = hack, cpp_int& rgenerator = hack)
+char verifier(char* p, int range = 4096, int trials = 10, bool hex = false, Integer& rmodulus = hack, Integer& rgenerator = hack)
 {
     char results[3];
     int i(0), N(1);
@@ -113,7 +105,7 @@ char verifier(char* p, int range = 4096, int trials = 10, bool hex = false, cpp_
     char b(0);
 
     // Used for validation.
-    cpp_int modulus, pohlig, generator;
+    Integer modulus, pohlig, generator;
 
     for(int j = 0; j < 2; j++) 
     {
@@ -181,12 +173,13 @@ char verifier(char* p, int range = 4096, int trials = 10, bool hex = false, cpp_
     cout << "Pohlig-Hellman Prime (" << blog2(pohlig) << " bits): " << (hex ? std::hex : std::dec) << pohlig << std::dec << endl;
     cout << endl << "N: " << N << endl;
 
+    CryptoPP::AutoSeededRandomPool asrp; 
     // A silly (but simple) way to parallelize this process.
     #pragma omp parallel for 
     for (int branch = 0; branch < 3; branch++)
     {
-        if (branch == 0) results[branch] = miller_rabin_test(modulus, trials, gen2);
-        else if(branch == 1) results[branch] = miller_rabin_test(pohlig, trials, gen2);
+        if (branch == 0) results[branch] = RabinMillerTest(asrp, modulus, trials);
+        else if(branch == 1) results[branch] = RabinMillerTest(asrp, pohlig, trials);
         else if(branch == 2) results[branch] = checkGeneratorInclusive(generator, modulus, pohlig, N);
     }
 
@@ -242,7 +235,7 @@ int main(int argc, char **args)
     char *outFile = nullptr;
     char *verify  = nullptr;
     long long maxN(4096ll | (1ll << 40));
-    cpp_int requestPrime(0);
+    Integer requestPrime("0");
     // End Flags //
 
     // Mutex for adding the parameters.
@@ -283,18 +276,18 @@ int main(int argc, char **args)
             string p = (args[++i]);
             if(hex)
             {
-                if(starts_with(p, "0x"))
+                if(p.length() >= 2 && p[0] == '0' && p[1] == 'x')
                 {
-                    requestPrime.assign(p);    
+                    requestPrime = Integer((unsigned char*)&p[0], p.length());    
                 }
                 else
                 {
-                    requestPrime.assign("0x" + p);
+                    requestPrime = Integer((unsigned char*)&("0x" + p)[0], p.length() + 2);
                 }
             }
             else
             {
-                requestPrime.assign(p);
+                requestPrime = Integer((unsigned char*)&p[0], p.length());
             }
         }
         else
@@ -356,9 +349,9 @@ int main(int argc, char **args)
     }
 
     // Storage for the parameters.
-    vector<cpp_int> phPrimes;
-    vector<cpp_int> modulusPrimes;
-    vector<cpp_int> tupleBases;
+    vector<Integer> phPrimes;
+    vector<Integer> modulusPrimes;
+    vector<Integer> tupleBases;
     vector<int> offsets;
 
     // hacks for the algorithm. 
@@ -411,7 +404,7 @@ int main(int argc, char **args)
         if (requestPrime != 0)
         {
             // Create a Pohlig variable.
-            cpp_int pohlig = requestPrime - 1;
+            Integer pohlig = requestPrime - 1;
             int val = 1;
             
             // Factor out every possible prime.
@@ -468,7 +461,7 @@ int main(int argc, char **args)
             ifs.read(buf, pos);
             
             // Used to return the parameters.
-            cpp_int modulus, generator;
+            Integer modulus, generator;
 
             // Verifies the data within the file.
             char result = verifier(buf, (int)maxN, 10, hex, modulus, generator);
@@ -492,7 +485,7 @@ int main(int argc, char **args)
     {
         cout << "t";
         bool internal = false;
-        cpp_int primeVal, tupleBase; 
+        Integer primeVal, tupleBase; 
         
         
         // Searching for Prime values.
@@ -549,7 +542,7 @@ int main(int argc, char **args)
             cout << "-";
 
             // 2*p 
-            cpp_int temp = primeVal << 1; 
+            Integer temp = primeVal << 1; 
 
             // Creates a cache to speed up the search.
             long long *cache = new long long[NSPDH_TRIAL_DIVISIONS]();
@@ -641,9 +634,9 @@ int main(int argc, char **args)
     for(int i = 0; i < phPrimes.size(); i++)
     {
         // Grab the computed parameters.
-        cpp_int phPrime = phPrimes[i];
-        cpp_int modulusPrime = modulusPrimes[i];
-        cpp_int tupleBase = tupleBases[i];
+        Integer phPrime = phPrimes[i];
+        Integer modulusPrime = modulusPrimes[i];
+        Integer tupleBase = tupleBases[i];
         int offset = offsets[i];
 
         // Print out the parameters
@@ -663,12 +656,13 @@ int main(int argc, char **args)
         cout << blog2(modulusPrime) << " " << blog2(offset) << endl;
 
         // Find a valid primitive root.
-        cpp_int primitiveGenerator;
+        Integer primitiveGenerator;
 
         if(randomizeGenerator)
         {
             // Finds a random primitive root.
-            primitiveGenerator = (gen() % modulusPrime).convert_to<unsigned int>();
+            CryptoPP::AutoSeededRandomPool asrp; 
+            primitiveGenerator.Randomize(asrp, 128);    
         }
         else
         {
@@ -678,12 +672,13 @@ int main(int argc, char **args)
         
         // used to find a quadratic-residue generator
         // Note: Potential optimization, when c = 2 test quadratic = 3, if that fails, quadratic is immediately 4 without a test.
-        cpp_int quadraticGenerator(primitiveGenerator);
+        Integer quadraticGenerator(primitiveGenerator);
         
 
         if(generatorMode == NSPDH_GENERATOR_QUADRATIC || generatorMode == NSPDH_GENERATOR_SMALLEST)
+        
         // Tries to find a quadratic generator, which will have g^(totient/2) == 1,
-        while(powm(quadraticGenerator, (modulusPrime-1)/2, modulusPrime) != 1)
+        while(a_exp_b_mod_c(quadraticGenerator, (modulusPrime-1)/2, modulusPrime) != 1)
         {
             quadraticGenerator++;
         }
@@ -712,16 +707,16 @@ int main(int argc, char **args)
             // Only export this once.
             if(tuple && i == 0)
             {
-                cpp_int g = 2;     
-                cpp_int tot = phPrime-1;
+                Integer g = 2;     
+                Integer tot = phPrime-1;
                 tot = tot/tupleBase;
 
                 // Finds a generator of Multiplicative Order q (tupleBase).
-                while(powm(g, tot, phPrime) == 1) g++;
-                g = powm(g, tot, phPrime);
+                while(a_exp_b_mod_c(g, tot, phPrime) == 1) g++;
+                g = a_exp_b_mod_c(g, tot, phPrime);
                 
                 // Pushes the parameters (in the correct order) to the sequence.
-                vector<cpp_int> vec;
+                vector<Integer> vec;
                 vec.push_back(phPrime);
                 vec.push_back(tupleBase);
                 vec.push_back(g);
@@ -731,32 +726,32 @@ int main(int argc, char **args)
                 if(dsaconvert & 2) dsaconvert |= NSPDH_DSAPARAM;
 
                 /*
-                cpp_int k = 3777;
-                cpp_int x = 234;
-                cpp_int y = powm(g, x, phPrime);
-                cpp_int k1 = powm(k, tupleBase-2, tupleBase);
-                cpp_int h = 7113;
+                Integer k = 3777;
+                Integer x = 234;
+                Integer y = a_exp_b_mod_c(g, x, phPrime);
+                Integer k1 = a_exp_b_mod_c(k, tupleBase-2, tupleBase);
+                Integer h = 7113;
 
-                cpp_int r = powm(g, k, phPrime);
+                Integer r = a_exp_b_mod_c(g, k, phPrime);
                 r = r % tupleBase;
 
-                cpp_int s = k1 * (h + r*x);
+                Integer s = k1 * (h + r*x);
                 s = s % tupleBase;
 
                 cout << "r: " << r << endl;
                 cout << "s: " << s << endl;
 
-                cpp_int w = powm(s, tupleBase-2, tupleBase);
-                cpp_int u1 = w*h;
+                Integer w = a_exp_b_mod_c(s, tupleBase-2, tupleBase);
+                Integer u1 = w*h;
                 u1 = u1 % tupleBase;
 
-                cpp_int u2 = w*r;
+                Integer u2 = w*r;
                 u2 = u2 % tupleBase;
 
-                cpp_int v1 = powm(g, u1, phPrime);
-                cpp_int v2 = powm(y, u2, phPrime);
+                Integer v1 = a_exp_b_mod_c(g, u1, phPrime);
+                Integer v2 = a_exp_b_mod_c(y, u2, phPrime);
 
-                cpp_int v = (v1*v2) % phPrime;
+                Integer v = (v1*v2) % phPrime;
                 v = v % tupleBase;
 
                 cout << "v: " << v << endl;
@@ -767,10 +762,10 @@ int main(int argc, char **args)
             }
 
             // Used for outputting "multiple" files.
-            string variant = "-" + lexical_cast<string>(i);
+            string variant = "-" + to_string(i);
             if(!multiple) variant = "";
 
-            cpp_int generator(primitiveGenerator); 
+            Integer generator(primitiveGenerator); 
 
             //if quadratic mode is toggled, switch the generator into a quadratic residue.
             if(generatorMode == NSPDH_GENERATOR_QUADRATIC)

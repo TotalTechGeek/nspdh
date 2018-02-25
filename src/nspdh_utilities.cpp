@@ -1,15 +1,13 @@
 #include "nspdh_utilities.hpp"
 #include <climits>
 #include <iostream>
+#include "../cryptopp/osrng.h"
+
 namespace nspdh 
 {
-    #define generateIt(size) gen() >> ((8192*2) - size);
+
    
     using namespace std;
-
-    using namespace boost::random;
-    using namespace boost::math; 
-    using namespace boost::multiprecision;
 
 
     #if defined(_WIN32) || defined(_WIN64)
@@ -23,16 +21,11 @@ namespace nspdh
     }
     #endif
     
-    // Defines the available generators
-    static generator_type gen(time(0));
-    static generator_type2 gen2(time(0));
-
     // Finds the bitsize. 
-    int blog2(cpp_int val)
+    int blog2(Integer val)
     {   
-        return msb(val)+1;
+        return val.BitCount();
     }
-
 
     static vector<long long> primeCache;
 
@@ -67,10 +60,10 @@ namespace nspdh
     }
 
 
-    // Tests whether the given cpp_int is prime or not.
+    // Tests whether the given Integer is prime or not.
     // It print out a "." when a potential prime is found. This is to
     // give it more ssl-like behavior.
-    char fastPrimeC(const cpp_int& v, long long *cache, long long by)
+    char fastPrimeC(const Integer& v, long long *cache, long long by)
     {   
 
         int primeMax = blog2(v)/1.5f + 1;
@@ -92,7 +85,7 @@ namespace nspdh
                     }
 
                     
-                    cache[i] = (v % prime(i)).convert_to<long long>();
+                    cache[i] = v % prime(i);
                     if(cache[0] == -1) cache[i] = (prime(i) - cache[i]) % prime(i);
                     else cache[i] *= 2;
                 }
@@ -147,43 +140,13 @@ namespace nspdh
         // Print out a dot to indicate that it may have potentially found a prime value.
         cout << "." << flush;
         
-        // Miller Rabin Test Section, seems to optimize better than the built in Boost MR Test.
-        cpp_int s = v - 1;
-        
-        // Quick Fermat Test 
-        /*
-        cpp_int f = 2; 
-        if(powm(f, s, v) != 1) return 0;
-        cout << "*" << endl; */
-
-        while (!(s & 1)) s >>= 1;
-       
        	// Optimization based on a paper I will cite at a later date.
         int trialCount = 9;
         if(blog2(v) >= 2000) trialCount = 3;
         else if(blog2(v) >= 1024) trialCount = 6;
         
-        for (int i = 0; i < trialCount; i++)
-        {
-            cpp_int a = gen2() % ULONG_MAX, temp = s;
-            if(i == 0) a = 2;
-            if(i == 1) a = 3;
-            if(i == 3) a = 5;
-            cpp_int mod = powm(a, temp, v);
-            
-            while (!(mod == 1 || temp == v - 1 || mod == v - 1))
-            {
-                mod = powm(mod, 2, v);
-                temp <<= 1;
-            }
-            
-            if (!(temp & 1) && mod != v-1)
-            {
-                return 0;
-            }
-        }
-
-        return 1;
+        CryptoPP::AutoSeededRandomPool asrp;
+        return IsStrongProbablePrime(v, 3) && IsStrongLucasProbablePrime(v) && RabinMillerTest(asrp, v, trialCount);
     }
 
 
@@ -225,21 +188,21 @@ namespace nspdh
     }
 
     // Checks whether a given generator is valid primitive root or not.
-    char checkGenerator(const cpp_int& proposed, const cpp_int& modPrime, const cpp_int& phPrime, int smallVal)
+    char checkGenerator(const Integer& proposed, const Integer& modPrime, const Integer& phPrime, int smallVal)
     {
         vector<int> facts = factor(smallVal);
-        cpp_int tot = modPrime - 1;
+        Integer tot = modPrime - 1;
 
         // Computes g^(totient/2) 
-        if(powm(proposed,tot/2,modPrime) == 1) return 0;
+        if(a_exp_b_mod_c(proposed,tot/2,modPrime) == 1) return 0;
         
         // Computes g^(totient/pohlig-hellman prime factor)
-        if(powm(proposed, tot/phPrime, modPrime) == 1) return 0;
+        if(a_exp_b_mod_c(proposed, tot/phPrime, modPrime) == 1) return 0;
 
         // Computes g^(totient/p_i), which is the generator raised to the power of the totient divided by each unique prime factor.
         for(int i = 0; i < facts.size(); i++)
         {
-            if(powm(proposed, tot/facts[i], modPrime) == 1) return 0; 
+            if(a_exp_b_mod_c(proposed, tot/facts[i], modPrime) == 1) return 0; 
         }
 
         // This was a primitive root.
@@ -248,10 +211,10 @@ namespace nspdh
 
 
     // Checks the generator, even if it's a quadratic residue. This is for the verification function.
-    char checkGeneratorInclusive(const cpp_int& proposed, const cpp_int& modPrime, const cpp_int& phPrime, int smallVal)
+    char checkGeneratorInclusive(const Integer& proposed, const Integer& modPrime, const Integer& phPrime, int smallVal)
     {
         // Checks if it is a Quadratic Residue.
-        if(powm(proposed, (modPrime-1)/2, modPrime) == 1)
+        if(a_exp_b_mod_c(proposed, (modPrime-1)/2, modPrime) == 1)
         {   
             // has second bit flag that it was a quadratic.
             return 3; // binary = 11
@@ -263,9 +226,9 @@ namespace nspdh
     // Finds the number of generators of a cyclic group (totient of totient). 
     // Totient(modPrime) * product of each factor (1 - 1/p_i),
     // Totient(modPrime) * product of each factor ((p_i-1)/p_i)
-    cpp_int numberOfGenerators(const cpp_int& modPrime, const cpp_int& phPrime, int smallVal)
+    Integer numberOfGenerators(const Integer& modPrime, const Integer& phPrime, int smallVal)
     {
-        cpp_int val = modPrime - 1;
+        Integer val = modPrime - 1;
 
         // Unnecessary instruction left commented for consistency. 
         // val *= 1; 
@@ -292,13 +255,16 @@ namespace nspdh
 
     // Generates a prime value of the requested size.
     // While not preferable, the volatile char* is included to allow the function to sleep, yielding to other threads. 
-    cpp_int generatePrime(int size, volatile char* completionStatus)
-    {            
+    Integer generatePrime(int size, volatile char* completionStatus)
+    {
+        CryptoPP::AutoSeededRandomPool asrp;            
         // Generates a random value.
-        cpp_int primeVal = generateIt(size);
+        Integer primeVal;
+        primeVal.Randomize(asrp, size);
+        
                 
         // Enforces size restctions (and that it is odd)
-        primeVal |= (((cpp_int)1) << (size-1)) | 1;
+        primeVal |= (((Integer)1) << (size-1)) | 1;
 
         long long *cache = new long long[NSPDH_TRIAL_DIVISIONS]();
         cache[0] = -1;
@@ -324,10 +290,11 @@ namespace nspdh
     // Generates a Prime Tuple, and intentionally attempts to "maximize" its Pohlig-Hellman strength.
     // While this is not technically necessary (not a requirement of DSA), I think that it is probably worth it.
     // One thing to consider is that since the added Prime Factors are unknown, the GFNS (for factorization) must be applied.
-    cpp_int generatePrimeTuple(int size, cpp_int base, volatile char* completionStatus)
+    Integer generatePrimeTuple(int size, Integer base, volatile char* completionStatus)
     {
         // Generates a random value.
-        cpp_int offset, enhancer;
+        Integer offset, enhancer, z;
+        CryptoPP::AutoSeededRandomPool asrp;
         int count(65536), retries(0);
 
         while(true)
@@ -337,7 +304,7 @@ namespace nspdh
             {
                 if(++retries == 10) return 0;
                 
-                offset = gen2();
+                offset.Randomize(asrp, 256);
                 enhancer = 2;
 
                 // Attempts to boost the known strength of the tuple.
@@ -368,15 +335,16 @@ namespace nspdh
             if(*completionStatus == NSPDH_MODULUS_FOUND) break;
         
             // This is used to place the randomly generated offset into a range where it can create the correct bit size. 
-            cpp_int shiftedOffset = offset;
+            Integer shiftedOffset = offset;
             
             // Shifts the offset.
             while(blog2(shiftedOffset*base*enhancer + 1) < size) 
             {
                 shiftedOffset <<= 1;
 
+                z.Randomize(asrp, 2);
                 //Gives it some extra entropy.
-                shiftedOffset |= (gen2() & 1);
+                shiftedOffset |= (z & 1);
             }
 
             // If it created a value of a correct size,
