@@ -75,11 +75,13 @@ void displayHelp(char* exeName, bool verbose = false)
         cout << "-n <value>" << "\tSets the restricted range for finding NSPs." << endl;
         cout << "-bn <value>" << "\tSets the restricted range (in bits) for finding NSPs." << endl;
         cout << "-8" << "\t\tForces the Modulus length to be divisible by 8." << endl;
-        cout << "-verify <file>" << "\tVerifies the parameters in a file. OpenSSL Formats are not supported (yet)." << endl;
+        cout << "-v <file>" << "\tVerifies the parameters in a file. OpenSSL Formats are not supported (yet)." << endl;
+        cout << "-dcv <file>" << "\tVerifies the parameters in a file. Uses the .dh format (DiscreteCrypt DH)." << endl;
         cout << "-hex" << "\t\tPrints out prime number and generator output in hex." << endl;
         cout << "-use <number>" << "\tAttempts to use a number input into it as the Pohlig-Hellman prime (base 10, or base 16 if -hex is used before this flag)." << endl;
         cout << "-tuple <size>" << "\tFinds a smaller prime of the specified size that will be related to the Pohlig-Hellman prime, creating a Tri-Prime Tuple. For use with signatures." << endl;
         cout << "-out <fileName>" << "\tExports the parameters to a file." << endl;
+        cout << "-dc" << "\t\tExports the parameters to a .dh file, which DiscreteCrypt can read." << endl;
         #ifdef LINKASN1C
         cout << "-der" << "\t\tExports an OpenSSL-compatible .der file." << endl;
         cout << "-pem" << "\t\tExports an OpenSSL-compatible .pem file. (Experimental)" << endl;
