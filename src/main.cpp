@@ -226,7 +226,7 @@ int main(int argc, char **args)
     int size(2048);
     int maxModuli(0); 
     int tuple(0);
-    char convert(0);
+    char convert = 0;
     bool multiple(false);
     bool hex(false);
     bool divisibleBy8(false);

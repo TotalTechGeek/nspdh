@@ -29,8 +29,8 @@ namespace nspdh
     #define NSPDH_POHLIG_FOUND  1
     #define NSPDH_MODULUS_FOUND 2
     #define NSPDH_FREEZE 3
-    #define NSPDH_DHPARAM (1<<2)
-    #define NSPDH_DSAPARAM (2<<2)
+    #define NSPDH_DHPARAM (1<<3)
+    #define NSPDH_DSAPARAM (1<<4)
     
     using CryptoPP::Integer;
     
