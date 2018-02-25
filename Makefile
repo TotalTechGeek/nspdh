@@ -1,4 +1,4 @@
-CC = g++ -O3 -fopenmp -DLINKASN1C -DREQUIRE_XML_EXPORT -s -static -I"boost_1_65_1"
+CC = g++ -O3 -fopenmp -DLINKASN1C -DREQUIRE_XML_EXPORT -s -static 
 CC2 = gcc -O3 -s -static 
 
 LIBS = -I"asn1c-0.9.28/libasn1compiler" -I"asn1c-0.9.28/libasn1print" -I"asn1c-0.9.28/libasn1parser" -I"asn1c-0.9.28/libasn1fix" -I"asn1c-0.9.28/skeletons"
@@ -6,7 +6,7 @@ LIBS = -I"asn1c-0.9.28/libasn1compiler" -I"asn1c-0.9.28/libasn1print" -I"asn1c-0
 all: nspdh.exe enber.exe unber.exe
 
 nspdh.exe: src/main.o src/nspdh_io.o src/nspdh_utilities.o enber.o
-	$(CC) src/main.o src/nspdh_io.o src/nspdh_utilities.o enber.o -o nspdh.exe 
+	$(CC) src/main.o src/nspdh_io.o src/nspdh_utilities.o enber.o cryptopp/libcryptopp.a -o nspdh.exe 
 
 enber.o: asn1c-0.9.28/asn1c/enber.c  
 	$(CC2) $(LIBS) -c asn1c-0.9.28/asn1c/enber.c -o enber.o -DBufferMode
