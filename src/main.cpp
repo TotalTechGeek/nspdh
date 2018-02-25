@@ -92,11 +92,11 @@ void displayHelp(char* exeName, bool verbose = false)
 static Integer hack; 
 
 // Verifier function.
-// Needs refractoring and some expansion. 
+// Needs refactoring and some expansion. 
 // It works, but I need to make it so that it's a pure function without output.
 // Note that this is not proper XML Parsing, but it is not completely necessary.
 // I am relying on the user to pass in valid input. 
-char verifier(char* p, int range = 4096, int trials = 10, bool hex = false, Integer& rmodulus = hack, Integer& rgenerator = hack)
+char verifier(char* p, int range = 4096, int trials = 10, bool hex = false, bool verifyDC = false, Integer& rmodulus = hack, Integer& rgenerator = hack)
 {
     char results[3];
     int i(0), N(1);
@@ -107,48 +107,70 @@ char verifier(char* p, int range = 4096, int trials = 10, bool hex = false, Inte
     // Used for validation.
     Integer modulus, pohlig, generator;
 
-    for(int j = 0; j < 2; j++) 
+
+    if(verifyDC)
     {
-        // Skips to the first character after the first '>'
-        while(p[i++] != '>'); 
-        // Skips to the first character after the second '>'
-        while(p[i++] != '>');
+        int16_t len1, len2; 
         
-        // Checks if we're currently on a hex value.
-        while(p[i] == '&')
+        len1 = *(int16_t*)p;
+        p += sizeof(int16_t);
+
+        len2 = *(int16_t*)p;
+        p += sizeof(int16_t);
+
+        modulus.Decode((unsigned char*)p, len1);
+        p += len1;
+
+        generator.Decode((unsigned char*)p, len2);
+    }
+    else
+    {
+        // XML File Format Thingy.
+        for(int j = 0; j < 2; j++) 
         {
-            // Skips to the first character after the 'x'.
-            while(p[i++] != 'x');
-
-            // Convert two digit hex to decimal.
-            // Top 4 Bits 
-            if(p[i] >= '0' && p[i] <= '9')
-            b = (p[i++] - '0')*16;
-            else
-            b = (p[i++] - 'a' + 10)*16;
-
-            // Bottom 4 bits.
-            if(p[i] >= '0' && p[i] <= '9')
-            b += (p[i++] - '0');
-            else
-            b += (p[i++] - 'a' + 10);
-            // End hex conversion.
+            // Skips to the first character after the first '>'
+            while(p[i++] != '>'); 
+            // Skips to the first character after the second '>'
+            while(p[i++] != '>');
             
-            // Consume the hex value. 
-            generator <<= 8;
-            generator |= (unsigned char)b; 
+            // Checks if we're currently on a hex value.
+            while(p[i] == '&')
+            {
+                // Skips to the first character after the 'x'.
+                while(p[i++] != 'x');
 
-            // Go onto the next hex value or end.
-            i++;    
-        }
+                // Convert two digit hex to decimal.
+                // Top 4 Bits 
+                if(p[i] >= '0' && p[i] <= '9')
+                b = (p[i++] - '0')*16;
+                else
+                b = (p[i++] - 'a' + 10)*16;
 
-        // This is a shortcut done to shorten the code. 
-        if(!j)
-        {
-            modulus = generator;
-            generator = 0;
+                // Bottom 4 bits.
+                if(p[i] >= '0' && p[i] <= '9')
+                b += (p[i++] - '0');
+                else
+                b += (p[i++] - 'a' + 10);
+                // End hex conversion.
+                
+                // Consume the hex value. 
+                generator <<= 8;
+                generator |= (unsigned char)b; 
+
+                // Go onto the next hex value or end.
+                i++;    
+            }
+
+            // This is a shortcut done to shorten the code. 
+            if(!j)
+            {
+                modulus = generator;
+                generator = 0;
+            }
         }
     }
+
+    
 
     // Prints out the supposed Modulus Prime.
     cout << "Modulus Prime (" << blog2(modulus) << " bits): " << (hex ? std::hex : std::dec) << modulus << std::dec << endl;
@@ -229,6 +251,7 @@ int main(int argc, char **args)
     char convert = 0;
     bool multiple(false);
     bool hex(false);
+    bool verifyDC(false);
     bool divisibleBy8(false);
     bool randomizeGenerator(false);
     char generatorMode(NSPDH_GENERATOR_PRIMITIVE_ROOT);
@@ -331,8 +354,10 @@ int main(int argc, char **args)
         else
 
         // Attempts to verify the parameters within the given file.
-        if(!strcmp(args[i], "-v") || !strcmp(args[i], "-verify")) 
+        if(!strcmp(args[i], "-v") || !strcmp(args[i], "-verify") || !strcmp(args[i], "-dcv")) 
         {
+            verifyDC =!strcmp(args[i], "-dcv");
+
             verify = args[++i];
             if(!strcmp(args[i], "-use") || !strcmp(args[i], "-u") || !strcmp(args[i], "-in")) i--;
         }
@@ -464,7 +489,7 @@ int main(int argc, char **args)
             Integer modulus, generator;
 
             // Verifies the data within the file.
-            char result = verifier(buf, (int)maxN, 10, hex, modulus, generator);
+            char result = verifier(buf, (int)maxN, 10, hex, verifyDC, modulus, generator);
 
             // Allows the person to export the parameters upon verification.
             if((result & 7) == 7 && outFile != nullptr)
