@@ -2,38 +2,39 @@
 #include "base64.hpp"
 #include <sstream>
 
-#include <boost/format.hpp>
-#include <boost/lexical_cast.hpp>
-
 #include "nspdh_utilities.hpp"
 
 using namespace std;
-using namespace boost::multiprecision;
-using namespace boost::math;
 
-using boost::format;
-using boost::lexical_cast;
 
 namespace nspdh 
 {
     // Prints the byte array for prime values.
     void printByteArray(vector<char>& r, ostream& file)
     {
-        for(int i = r.size() -1; i >= 0; i--)
+        char lookup[] = "0123456789abcdef";
+        for(int i = 0; i < r.size(); i++)
         {
-            file << "&#x" << format("%02x")  % (int)((unsigned char)r[i]) << ";";  
+            file << "&#x";
+
+            file << lookup[(r[i] >> 4) & 15];
+            file << lookup[r[i] & 15];
+            
+            file << ";";  
         }
     }
 
     // Gets the bytes for a given prime.
-    vector<char> getByteArray(cpp_int v)
+    vector<char> getByteArray(Integer v)
     {
         vector<char> res;
-        while(v != 0)
-        {
-            res.push_back((v & 255).convert_to<char>());
-            v >>= 8; 
-        }
+        
+        unsigned char* bytes = new unsigned char[v.ByteCount()];
+
+        v.Encode(bytes, v.ByteCount());
+        res.insert(res.end(), bytes, bytes + v.ByteCount());
+        
+        delete[] bytes;
         return res;
     }
 
@@ -47,35 +48,42 @@ namespace nspdh
     // but since I already have a Boost Dependency, I'll use the boost library for backwards compatibility. 
     string quotes(const string& tag, int x)
     {
-        return quotes(tag, lexical_cast<string>(x));
+        return quotes(tag, to_string(x));
     }
 
     // Creates the binary file for tools like DiscreteCrypto.
-    std::string createBinary(vector<cpp_int>& params)
+    std::string createBinary(vector<Integer>& params)
     {
-        std::string result; 
+        
+        Integer modulus = params[0];
+        Integer generator = params[1];
+        unsigned char* out1 = new unsigned char[modulus.ByteCount()];
+        unsigned char* out2 = new unsigned char[generator.ByteCount()];
+        std::string result;
+        
 
-        vector<unsigned char> m;
-        export_bits(params[0], std::back_inserter(m), 8);
-    
-        vector<unsigned char> g;
-        export_bits(params[1], std::back_inserter(g), 8);
 
-        int16_t len = (int16_t)m.size();
-        result.append((char*)&len, sizeof(int16_t));
+        //append the lengths
+        int16_t len1 = (int16_t)modulus.ByteCount(), len2 = (int16_t)generator.ByteCount();
+        result.append((char*)(&len1), sizeof(int16_t));
+        result.append((char*)(&len2), sizeof(int16_t));
 
-        len = (int16_t)g.size();
-        result.append((char*)&len, sizeof(int16_t));
+        modulus.Encode(out1, modulus.ByteCount());
+        result.append((char*)out1, modulus.ByteCount());
+        
+        generator.Encode(out2, generator.ByteCount());
+        result.append((char*)out2, generator.ByteCount());
+        
+        delete[] out1;
+        delete[] out2;
 
-        result.append((char*)&m[0], m.size());
-        result.append((char*)&g[0], g.size());
-
-        return result;
+        return result; 
+        
     }
 
 
     // Creates the XML File to be converted by a tool like "enber". 
-    void createXML(vector<cpp_int>& params, ostream& file)
+    void createXML(vector<Integer>& params, ostream& file)
     {
         // This code could be really, really buggy.
         // Thus far, it has worked quite well though. :)
@@ -195,7 +203,7 @@ namespace nspdh
     }
 
     // Exports the parameters.
-    void exportParameters(const string& outFile, vector<cpp_int>& params, char convert)
+    void exportParameters(const string& outFile, vector<Integer>& params, char convert)
     {
         // Creates a string stream for an easy memory buffer.
         ostringstream conversion;
@@ -271,10 +279,10 @@ namespace nspdh
     }
 
     // Exports the parameters. (Wrapper function)
-    void exportParameters(const string& outFile, cpp_int& modulusPrime, cpp_int& generator, char convert)
+    void exportParameters(const string& outFile, Integer& modulusPrime, Integer& generator, char convert)
     {
         // Creates a vector for the parameters and pushes them in order.
-        vector<cpp_int> params;
+        vector<Integer> params;
         params.push_back(modulusPrime);
         params.push_back(generator);
 
