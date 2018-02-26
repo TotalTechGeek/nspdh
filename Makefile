@@ -1,5 +1,18 @@
-CC = g++ -O3 -fopenmp -DLINKASN1C -DREQUIRE_XML_EXPORT -s -static -std=c++11
-CC2 = gcc -O3 -s -static 
+
+ifeq ($(CXX),)
+CXX = g++
+endif
+
+ifeq ($(CCX),)
+CCX = gcc
+endif
+
+ifeq ($(OS),Windows_NT)
+STAT = -static
+endif
+
+CC = $(CXX) -O3 -fopenmp -DLINKASN1C -DREQUIRE_XML_EXPORT -s $(STAT) -std=c++11
+CC2 = $(CCX) -O3 -s $(STAT)
 
 LIBS = -I"asn1c-0.9.28/libasn1compiler" -I"asn1c-0.9.28/libasn1print" -I"asn1c-0.9.28/libasn1parser" -I"asn1c-0.9.28/libasn1fix" -I"asn1c-0.9.28/skeletons"
 

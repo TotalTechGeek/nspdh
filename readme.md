@@ -95,6 +95,13 @@ Which will run the init script and fetch all necessary dependencies (Crypto++, A
 
 Java 8 or higher is required. Tested with g++, clang (aliased as g++), and Mingw32_64.
 
+**WARNING**: If you are compiling this project for the Mac, the default clang compiler will not work, as it lacks OpenMP support. If you wish to compile this project, you may have to it to a different compiler using something along the lines of: 
+```
+export CXX=g++-7
+export CCX=gcc-7
+```
+Prior to running dave.
+
 Support for Visual Studio is being considered.
 
 ### Building without dave

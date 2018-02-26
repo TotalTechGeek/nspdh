@@ -1,3 +1,10 @@
+if(isMac())
+{
+    say("Warning: The default Mac clang compiler (even aliased gcc) will not work with this project, as it lacks OpenMP support.")
+    say("If you have another compiler, you can define it with 'export CXX=g++-7' and 'export CCX=gcc-7' prior to executing the build.")
+    say("")
+}
+
 
 // Asn1c
 Resource("http://lionet.info/soft/asn1c-0.9.28.tar.gz", "asn1c.tar.gz", function (f) 
@@ -41,10 +48,7 @@ function make_nspdh()
     {
         say("nspdh built.");       
         if(detect("upx")) 
-            if(isWindows()) 
-                sys("upx nspdh.exe --lzma")
-            else 
-                sys("upx nspdh --lzma")
+             sys("upx nspdh.exe --lzma")
     });
 }
 
