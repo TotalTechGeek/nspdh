@@ -3,8 +3,6 @@
 ### So, what is it?
 nspdh generates secure parameters for Discrete Log Cryptography, like the Diffie-Hellman key exchange and the Digital Signature Algorithm, and does it much (potentially hundreds to thousands of times) faster than our top standard algorithms. 
 
-The algorithm can even generate prime "tuple" parameters that can be used for complete public key cryptography (with both encryption and signatures). 
-
 ## Faster?
 
 It's reasonably fast, and I think with speed improvements like this Discrete Log Cryptography might finally be seen as a viable alternative to RSA again. The speed boost over the standard algorithms increases with the bit size requested.
@@ -20,12 +18,10 @@ At 4096 bits, nspdh was able to generate new parameters nearly every 14 seconds.
 At 8192 bits, nspdh was able to generate parameters consistently in the range of 2-3 minutes.
 I left OpenSSL running for nearly 5 days before I had to terminate the process. 
 
-Due to a lack of computing power, I don't have a large sample size on larger parameters, but it found 16384 bit parameters in 4 hours. 
+16384 bit parameters can be found in 6-18 minutes. 
 
 ## Okay, what's the catch? 
 ### a.k.a. what are you doing differently? 
-
-You're correct to be skeptical! What could this algorithm be doing differently? 
 
 Well... it goes against standard practices... but with good reason! 
 
@@ -51,23 +47,23 @@ It's backwards, and once you reverse your thinking, an alternative approach beco
 
 ## Bottom-Up Discrete Log Parameter Generation.
 
-Because the terminology doesn't seem to exist, since we've placed our attention entirely on the modulus, I will propose some to make this description simpler.
+Because the terminology doesn't seem to exist, I will propose some to make this description simpler.
 
-I will be calling the largest factor of the modulus prime-1 the "Pohlig-Hellman prime", its size the "Pohlig-Hellman strength", and the modulus size "modulus strength".
+I will be calling the largest prime factor of the modulus prime - 1 the "Pohlig-Hellman prime", its log size the "Pohlig-Hellman strength", and the modulus log size "modulus strength".
 
-My method is this: 
+The method is this: 
 - Generate a Pohlig-Hellman Prime at the requested strength.
 - Find a corresponding prime modulus within a bounded range. 
 
-The prime modulus will exist in the form 2np + 1, where n is a random integer within a bounded range. Why bound this range? To make it simple and fast to verify! This is called a "nearly safe prime", but no less secure than a "safe prime".
+The prime modulus will exist in the form 2np + 1, where n is a random integer within a bounded range. This range is bounded to make the parameters easy to verify against backdoors. This is called a "nearly safe prime", but no less secure than a "safe prime".
 
 n by default is 4096, but 65536 is still acceptable (it's actually easy to verify all n values up to 2^32, but I don't recommend going above 2^24).  
 
-Primes within this form are far less sparse (because all primes greater than 3 exist in this form), and are far easier to find. While this creates a Discrete Log Group with a greater gap between the Pohlig-Hellman Prime and the Modulus Prime, that will have **zero** known effect on its cryptographic strength. No known Discrete Log Algorithm depends on the gap between the primes. 
+Primes within this form are far less sparse (technically all primes greater than 3 exist in this form), and are far easier to find. While this creates a Discrete Log Group with a slightly greater gap between the Pohlig-Hellman Prime and the Modulus Prime, that will have **zero** effect on its cryptographic strength. No known algorithm can exploit the gap between the primes (otherwise DSA would be broken). 
 
-As an example, a cyclic group with a 2048 Bit Pohlig-Hellman Strength might have a 2056 Bit Modulus Strength, both of which are technically better than the previous 2047/2048 combination. 
+As an example, a cyclic group with a 2048 Bit Pohlig-Hellman Strength might have a 2056 Bit Modulus Strength. (2048, 2056) is provably better than the (2047, 2048) combination. 
 
-And also! In the time it used to take to generate 2048 bit parameters, you can have far more secure 5120 bit parameters.
+In the time it used to take to generate 2048 bit parameters, you could generate far more secure 5120 bit parameters.
 
 #### But... I don't like the gap.
 
