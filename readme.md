@@ -27,21 +27,17 @@ Well... it goes against standard practices... but with good reason!
 
 **Before clicking off, don't worry, I didn't make the amateur mistake of just selecting a random prime.**
 
-After thoroughly researching Discrete Log Cryptography and contacting a few people who have written on the topic, I disagreed with a few "design" and measurement decisions early cryptographers made a few decades ago. Let me give provide background:
+After thoroughly researching Discrete Log Cryptography and contacting a few people who have written on the topic, I disagreed with a few "design" and measurement decisions earlier cryptographers made a few decades ago. 
 
-The Discrete Logarithm problem has quite a few attacks, while the well known attacks focus mostly on the prime modulus, there are attacks that rely solely upon the largest factor of the prime modulus - 1. The specific algorithm is called the [Pohlig-Hellman algorithm](https://en.wikipedia.org/wiki/Pohlig%E2%80%93Hellman_algorithm).
+The Discrete Logarithm problem has quite a few attack algorithms, while most of the well known attacks focus mostly on the modulus, there are attacks that rely solely upon the largest prime factor of the modulus - 1. The specific algorithm is called the [Pohlig-Hellman algorithm](https://en.wikipedia.org/wiki/Pohlig%E2%80%93Hellman_algorithm).
 
-Since the general consensus was that you should measure the strength of a cyclic group by the size of the modulus, early cryptographers made the decision to try to "maximize" the strength of the modulus against this algorithm for any given modulus. This led to them using "Safe-Primes", which exist in the form 2p+1, where p is a random prime. 
+Since at the time the general consensus was that you should measure the strength of a cyclic group by the size of the modulus, cryptographers made the decision to attempt to "maximize" the strength of the cyclic group against this attack for any given modulus. This led to them using "Safe-Primes", which exist in the form 2p+1, where p is a prime. 
 
-This effectively guarantees that the largest factor will be as close as it possibly can be at any given bit size (just one bit off).  
+This effectively guarantees that the largest prime factor will be at a minimal distance from the modulus, "maximizing" the cyclic group's strength.  
 
-Clever thinking, right? . . .  
+The problem is that they were actually looking at the problem **backwards**. This was a really good idea when Diffie-Hellman moduli were 256 and 512 bits, when a slightly larger gap dramatically impacted the security. Safe primes are also much more dense in those ranges. But as we're finding that safe primes are quite sparse at larger sizes, it might be time to consider another approach.
 
-Well, kinda. Maybe. *Not really...* 
-
-They're actually looking at the problem **backwards**, but we'll be getting to that. This was a really good idea when Diffie-Hellman keys were 256 and 512 bits, when a larger gap dramatically impacted the security. Those kinds of primes are also much denser in those ranges. But as we're finding that these primes are quite sparse at larger sizes, maybe it's time to consider that this isn't the best approach after all.
-
-You see, the size of the largest factor of the modulus prime-1 is in a sense the lower bound of the cyclic group's security, since it will always be smaller than the modulus prime itself. The standard ideology uses a bit of a top-down approach, where it focuses all the attention solely the upper-bound and sets harsh restrictions for everything below it. 
+The size of the largest factor of the modulus-1 is the lower bound of the cyclic group's security, since it will always be smaller than the modulus prime itself. The standard ideology currently uses a bit of a top-down approach, that generates a modulus with a minimal distance from the factor. 
 
 It's backwards, and once you reverse your thinking, an alternative approach becomes obvious. 
 
@@ -49,19 +45,19 @@ It's backwards, and once you reverse your thinking, an alternative approach beco
 
 Because the terminology doesn't seem to exist, I will propose some to make this description simpler.
 
-I will be calling the largest prime factor of the modulus prime - 1 the "Pohlig-Hellman prime", its log size the "Pohlig-Hellman strength", and the modulus log size "modulus strength".
+I will be calling the largest prime factor of the modulus - 1 the "Pohlig-Hellman prime", its log size the "Pohlig-Hellman strength", and the modulus log size "modulus strength".
 
 The method is this: 
 - Generate a Pohlig-Hellman Prime at the requested strength.
 - Find a corresponding prime modulus within a bounded range. 
 
-The prime modulus will exist in the form 2np + 1, where n is a random integer within a bounded range. This range is bounded to make the parameters easy to verify against backdoors. This is called a "nearly safe prime", but no less secure than a "safe prime".
+The prime modulus will exist in the form 2np + 1, where n is a random integer within a bounded range. This range is bounded to make the parameters easy to verify against backdoors (since you can easily find the pohlig value from the modulus). This is called a "nearly safe prime", but is no less secure than a "safe prime".
 
 n by default is 4096, but 65536 is still acceptable (it's actually easy to verify all n values up to 2^32, but I don't recommend going above 2^24).  
 
-Primes within this form are far less sparse (technically all primes greater than 3 exist in this form), and are far easier to find. While this creates a Discrete Log Group with a slightly greater gap between the Pohlig-Hellman Prime and the Modulus Prime, that will have **zero** effect on its cryptographic strength. No known algorithm can exploit the gap between the primes (otherwise DSA would be broken). 
+Primes within this form are far less sparse (technically all primes greater than 3 exist in this form), and are far easier to find. While this creates a Discrete Log Group with a slightly larger gap between the PH Prime and the Modulus, this will have **zero** impact on its cryptographic strength. No known algorithm can exploit the gap between the primes (otherwise DSA would be broken). 
 
-As an example, a cyclic group with a 2048 Bit Pohlig-Hellman Strength might have a 2056 Bit Modulus Strength. (2048, 2056) is provably better than the (2047, 2048) combination. 
+As an example, a cyclic group with a 2048 Bit Pohlig-Hellman Strength might have a 2056 Bit Modulus Strength. (2048, 2056) is provably better than the (2047, 2048) combination, against all known algorithms. 
 
 In the time it used to take to generate 2048 bit parameters, you could generate far more secure 5120 bit parameters.
 
