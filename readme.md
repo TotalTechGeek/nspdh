@@ -23,11 +23,11 @@ I left OpenSSL running for nearly 5 days before I had to terminate the process.
 ## Okay, what's the catch? 
 ### a.k.a. what are you doing differently? 
 
-Well... it goes against standard practices... but with good reason! 
+Well... it goes against the current standard practices *(for Diffie-Hellman Parameters)*... but with good reason! 
 
-**Before clicking off, don't worry, I didn't make the amateur mistake of just selecting a random prime.**
+**Don't worry: I didn't make the amateur mistake of just selecting a random prime.**
 
-After thoroughly researching Discrete Log Cryptography and contacting a few people who have written on the topic, I disagreed with a few "design" and measurement decisions earlier cryptographers made a few decades ago. 
+After researching Discrete Log Cryptography and contacting a few people who have written on the topic, I disagreed with a few "design" and measurement decisions earlier cryptographers made a few decades ago. 
 
 The Discrete Logarithm problem has quite a few attack algorithms, while most of the well known attacks focus mostly on the modulus, there are attacks that rely solely upon the largest prime factor of the modulus - 1. The specific algorithm is called the [Pohlig-Hellman algorithm](https://en.wikipedia.org/wiki/Pohlig%E2%80%93Hellman_algorithm).
 
@@ -35,11 +35,11 @@ Since at the time the general consensus was that you should measure the strength
 
 This effectively guarantees that the largest prime factor will be at a minimal distance from the modulus, "maximizing" the cyclic group's strength.  
 
-The problem is that they were actually looking at the problem **backwards**. This was a really good idea when Diffie-Hellman moduli were 256 and 512 bits, when a slightly larger gap dramatically impacted the security. Safe primes are also much more dense in those ranges. But as we're finding that safe primes are quite sparse at larger sizes, it might be time to consider another approach.
+The problem is that the problem was being observed **backwards**. This decision was decent when Diffie-Hellman moduli were 256 and 384 bits, when a slightly larger gap could dramatically impact the security. However, safe primes are also far more dense in those ranges. Safe primes are quite sparse at larger sizes, so it might be time to consider another approach.
 
 The size of the largest factor of the modulus-1 is the lower bound of the cyclic group's security, since it will always be smaller than the modulus prime itself. The standard ideology currently uses a bit of a top-down approach, that generates a modulus with a minimal distance from the factor. 
 
-It's backwards, and once you reverse your thinking, an alternative approach becomes obvious. 
+This approach is backwards, and once you reverse your thinking, an alternative approach becomes obvious. 
 
 ## Bottom-Up Discrete Log Parameter Generation.
 
@@ -61,9 +61,11 @@ As an example, a cyclic group with a 2048 Bit Pohlig-Hellman Strength might have
 
 In the time it used to take to generate 2048 bit parameters, you could generate far more secure 5120 bit parameters.
 
-#### But... I don't like the gap.
+---
 
-[Where have I heard this before?](https://youtu.be/pdR7WW3XR9c?t=52)
+**Let me to be clear:** This is not a *completely* new approach, or necessarily a new mathematical realization. The NIST already acknowledges this is secure in [their DSA specifications](https://csrc.nist.gov/csrc/media/publications/fips/186/3/archive/2009-06-25/documents/fips_186-3.pdf) in the choice of their (L, N) pairs. I'm just recommending a different scheme that'll accelerate parameter generation and still allow verification against backdoors (without extra file overhead).
+  
+I do, however, have some concerns with the current DSA specifications. If the initial steps of the Pohlig-Hellman algorithm could be computed on a quantum computer, and the DSA cyclic group was "backdoored" (intentionally constructed in such a way that the greatest factor will be N), then a Quantum computer of size N might be able to break the cyclic group quickly (rather than size L).  
 
 ## How do I actually use the software?
 
