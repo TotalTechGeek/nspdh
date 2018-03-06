@@ -20,8 +20,7 @@ I left OpenSSL running for nearly 5 days before I had to terminate the process.
 
 16384 bit parameters can be found in 6-18 minutes. 
 
-## Okay, what's the catch? 
-### a.k.a. what are you doing differently? 
+## What's being done differently? 
 
 Well... it goes against the current standard practices *(for Diffie-Hellman Parameters)*... but with good reason! 
 
