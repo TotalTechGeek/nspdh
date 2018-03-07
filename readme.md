@@ -86,7 +86,9 @@ java -jar Dave.jar
 
 Which will run the init script and fetch all necessary dependencies (Crypto++, ASN1C) and will patch the files to be built for your OS. Building with dave will allow you to support OpenSSL files. 
 
-Java 8 or higher is required. Tested with g++, clang (aliased as g++), and Mingw32_64.
+Java 8 or higher is required. Tested with g++, clang (aliased as g++), Mingw32_64, and Visual Studio 2017.
+
+**WARNING**: If you are compiling this project for Windows, we recommend you use something like 'cmder' as your shell (as it adds a few Unix utilities Dave takes advantage of). Otherwise, please install 7-Zip and add it to your path. 
 
 **WARNING**: If you are compiling this project for the Mac, the default clang compiler will not work, as it lacks OpenMP support. If you wish to compile this project, you may have to it to a different compiler using something along the lines of: 
 ```
@@ -94,8 +96,6 @@ export CXX=g++-7
 export CCX=gcc-7
 ```
 Prior to running dave.
-
-Support for Visual Studio is being considered.
 
 ### Building without dave
 

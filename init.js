@@ -88,8 +88,6 @@ function make_nspdh()
 
         sys(make, nspdhOut);
     }
-
-    
 }
 
 waitAll()
